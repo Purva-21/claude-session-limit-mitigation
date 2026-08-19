@@ -1,0 +1,24 @@
+name: context budget
+
+# Fails the build if the repository would be too expensive for an agent
+# session to carry. Tune --budget to your session's real limit.
+
+on: [push, pull_request]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Audit context exposure
+        run: python3 tools/context_audit.py . --budget 200000 --turns 3
+      - name: Fail if any notebook has stored outputs
+        run: |
+          n=$(python3 tools/context_audit.py . --json | grep -c "stored outputs" || true)
+          if [ "$n" != "0" ]; then
+            echo "::error::$n notebook(s) contain stored outputs; run tools/nb_strip.py"
+            exit 1
+          fi

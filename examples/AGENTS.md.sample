@@ -1,0 +1,65 @@
+# Repository conventions for coding agents
+
+Copy this to `AGENTS.md` (or `CLAUDE.md`) at your repo root and edit. Most agent
+harnesses read a root-level file of this name automatically. This is the
+instruction half of mitigation M3 — moving files into `artifacts/` without this
+file changes nothing, because the agent walks subdirectories too.
+
+---
+
+## Directory layout
+
+| directory | agent should |
+|---|---|
+| `src/`, `tests/` | read and edit freely |
+| `docs/` | read; edit when asked |
+| `artifacts/` | **do not read.** Generated output. If you need to know what is in here, ask, or read the manifest at `artifacts/MANIFEST.md` instead |
+| `data/raw/` | **do not read in full.** Sample with `head`/`pandas.read_csv(nrows=...)` |
+| `.cache/`, `build/` | ignore entirely |
+
+## Editing large files
+
+Any file over ~20 KB — notebooks, generated JSON, fixtures — must be changed
+with a **patch script**, not regenerated. Write the script to `patches/`, run
+it, and keep it: it is the record of what changed and it is re-runnable if this
+session ends.
+
+Do not rewrite a notebook by rebuilding it from a generator. Load it, mutate
+the specific cells, write it back.
+
+## Notebooks
+
+Notebooks in this repo are committed **without outputs**. Before editing one,
+confirm it is stripped. Before committing, strip again:
+
+```bash
+jupyter nbconvert --clear-output --inplace path/to/nb.ipynb
+```
+
+## Verification
+
+Run the whole check suite in one command and read the tail:
+
+```bash
+make check 2>&1 | tail -40
+```
+
+Do not run the linter, the type checker and the tests as three separate calls.
+
+## Long tasks
+
+At each natural boundary, update `STATE.md` with:
+
+- what is done
+- what is pending
+- what was ruled out, and why (this is the part that is expensive to
+  rediscover)
+
+Keep it short enough that a fresh session can read it and continue without
+replaying the conversation.
+
+## Delegation
+
+If you spawn a sub-agent, it must write results to disk incrementally. Work
+that only exists in a sub-agent's context is lost if the session is
+interrupted — not degraded, lost.
