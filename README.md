@@ -100,7 +100,7 @@ auditor re-run after each stage:
 
 | stage | hot tokens, one full read |
 |---|---:|
-| baseline | 273,468 |
+| baseline (working copy, QC harness excluded) | 273,468 |
 | delete 6 superseded artifacts | 100,895 |
 | strip remaining notebook outputs | 100,880 |
 | move generators aside **and declare them off-limits** | 55,418 |
@@ -109,6 +109,11 @@ auditor re-run after each stage:
 nearly flat, and [`docs/03-mitigations.md`](docs/03-mitigations.md) explains why
 rather than hiding it — the second and third mitigations overlap, and moving
 files into a subdirectory achieves nothing unless the agent is told to skip it.
+
+(The 273,468 baseline is measured on a copy with the QC harness subdirectory
+excluded; the 277,530 figure at the top of this page is the full directory.
+Same directory, 1.5% apart — the staged run used a copy so the original was not
+mutated.)
 
 ## The short list, if you read nothing else
 
