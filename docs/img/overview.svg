@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="430" viewBox="0 0 880 430" font-family="Helvetica, Arial, sans-serif">
+  <rect width="880" height="430" fill="#ffffff"/>
+
+  <text x="24" y="34" font-size="19" font-weight="bold" fill="#1a1a1a">Session limits are paid in re-reading, not in writing</text>
+  <text x="24" y="57" font-size="13" fill="#666">Estimated tokens for one full read of the working directory. Measured, this repo's own case study.</text>
+
+  <!-- ============ BEFORE ============ -->
+  <text x="24" y="96" font-size="14" font-weight="bold" fill="#c0392b">BEFORE — 277,530 tok  ·  5.5× a 200k budget</text>
+
+  <!-- stacked bar: dead weight vs real work -->
+  <rect x="24" y="108" width="560" height="42" fill="#c0392b" rx="3"/>
+  <rect x="584" y="108" width="250" height="42" fill="#7f8c8d" rx="3"/>
+  <text x="304" y="134" font-size="13" fill="#fff" text-anchor="middle">~173,000 dead weight</text>
+  <text x="709" y="134" font-size="13" fill="#fff" text-anchor="middle">~104,000 actual work</text>
+
+  <text x="24" y="170" font-size="12" fill="#555">build output never read again  ·  4 superseded notebook versions  ·  ~108 KB of stored cell outputs in one file</text>
+
+  <!-- ============ ARROW / ACTIONS ============ -->
+  <line x1="24" y1="196" x2="856" y2="196" stroke="#e0e0e0" stroke-width="1"/>
+
+  <text x="24" y="224" font-size="14" font-weight="bold" fill="#1a1a1a">THE FIX — one command, one prompt</text>
+
+  <rect x="24" y="238" width="255" height="66" fill="#eaf7ef" stroke="#27ae60" stroke-width="1.5" rx="4"/>
+  <text x="40" y="260" font-size="12.5" font-weight="bold" fill="#1e8449">1 · Fix the directory</text>
+  <text x="40" y="279" font-size="11.5" fill="#333">tools/prep_workspace.sh . --apply</text>
+  <text x="40" y="295" font-size="11" fill="#666">strip outputs · quarantine · declare</text>
+
+  <rect x="299" y="238" width="255" height="66" fill="#eaf7ef" stroke="#27ae60" stroke-width="1.5" rx="4"/>
+  <text x="315" y="260" font-size="12.5" font-weight="bold" fill="#1e8449">2 · Fix the behaviour</text>
+  <text x="315" y="279" font-size="11.5" fill="#333">paste prompts/session-start.md</text>
+  <text x="315" y="295" font-size="11" fill="#666">patch, don't rebuild · batch checks</text>
+
+  <rect x="574" y="238" width="260" height="66" fill="#eaf7ef" stroke="#27ae60" stroke-width="1.5" rx="4"/>
+  <text x="590" y="260" font-size="12.5" font-weight="bold" fill="#1e8449">3 · Make it permanent</text>
+  <text x="590" y="279" font-size="11.5" fill="#333">commit AGENTS.md to the repo</text>
+  <text x="590" y="295" font-size="11" fill="#666">applies to every future session</text>
+
+  <!-- ============ AFTER ============ -->
+  <text x="24" y="344" font-size="14" font-weight="bold" fill="#1e8449">AFTER — 40,314 tok  ·  0.8× the same budget  ·  6.9× reduction</text>
+
+  <rect x="24" y="356" width="121" height="42" fill="#27ae60" rx="3"/>
+  <rect x="145" y="356" width="689" height="42" fill="#f4f4f4" stroke="#ddd" rx="3"/>
+  <text x="84" y="382" font-size="12" fill="#fff" text-anchor="middle">40,314</text>
+  <text x="489" y="382" font-size="12.5" fill="#888" text-anchor="middle">headroom</text>
+
+  <text x="24" y="420" font-size="11.5" fill="#777">No code changed. The task was identical; only what sat within the agent's reach was different.</text>
+</svg>

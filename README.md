@@ -1,5 +1,7 @@
 # Surviving session limits in long agentic coding sessions
 
+![Before and after: 277,530 tokens reduced to 40,314](docs/img/overview.svg)
+
 A field report and a toolkit. During a multi-day task (building and debugging a
 SciCode benchmark notebook) a Claude Opus 5 Cowork session repeatedly hit its
 session limit mid-work — including killing a sub-agent in the middle of a
@@ -18,6 +20,30 @@ iteratively editing a 100 KB notebook, that means a six-figure token bill per
 turn for work that produced a twenty-line diff. Auditing the working directory
 and switching from *rewrite* to *patch* cut the per-turn cost by roughly an
 order of magnitude.
+
+## The problem as a loop
+
+```mermaid
+flowchart TD
+    A["Agent reads a file<br/>to work on it"] --> B["File contents<br/>enter context"]
+    B --> C["Agent edits the file<br/><i>(a 20-line diff)</i>"]
+    C --> D{"File changed<br/>on disk"}
+    D -->|"harness re-sends<br/>current contents"| B
+    C --> E["Build step writes<br/>a new artifact"]
+    E --> D
+
+    B -.->|"cost per turn =<br/><b>size of the file</b>,<br/>not size of the edit"| F["Context fills"]
+    F --> G["Session limit"]
+    G --> H["Work in flight is lost,<br/>not merely delayed"]
+
+    style G fill:#c0392b,color:#fff
+    style H fill:#c0392b,color:#fff
+    style F fill:#e67e22,color:#fff
+```
+
+`B → C → D → B` is the entire failure. Four more diagrams — what it cost,
+rebuild vs. patch, the fix as a decision tree, and the shape of a checkpointed
+task — are in [`docs/00-diagrams.md`](docs/00-diagrams.md).
 
 ## Measured, in the session that prompted this
 
@@ -96,6 +122,25 @@ If you want one sentence instead of a page, use
 [`examples/AGENTS.md.sample`](examples/AGENTS.md.sample) as `AGENTS.md` at the
 repo root and stop pasting anything. Most harnesses read it automatically.
 
+```mermaid
+flowchart LR
+    A(["long task"]) --> B["<b>prep_workspace.sh</b><br/>fix the directory"]
+    B --> C["<b>session-start.md</b><br/>fix the behaviour"]
+    C --> D["work in patches,<br/>one batched check"]
+    D --> E{"boundary?"}
+    E -->|no| D
+    E -->|yes| F["<b>checkpoint.md</b><br/>patch script + STATE.md"]
+    F --> G{"done?"}
+    G -->|no| H["fresh session<br/><b>resume.md</b>"]
+    H --> D
+    G -->|yes| I(["ship"])
+
+    style B fill:#27ae60,color:#fff
+    style C fill:#27ae60,color:#fff
+    style F fill:#27ae60,color:#fff
+    style I fill:#27ae60,color:#fff
+```
+
 That's the whole fix. Everything below is why it works and how it was measured.
 
 ### Individual tools
@@ -113,6 +158,7 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 
 | path | what it is |
 |---|---|
+| [`docs/00-diagrams.md`](docs/00-diagrams.md) | **Five diagrams** — the problem, its cost, rebuild vs patch, the fix, the shape of a long task |
 | [`docs/01-observed-behaviour.md`](docs/01-observed-behaviour.md) | What actually happened, with numbers and timestamps |
 | [`docs/02-root-cause.md`](docs/02-root-cause.md) | Mechanism — observation vs. inference, kept separate |
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
