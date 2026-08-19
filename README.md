@@ -91,6 +91,24 @@ it drops into a Makefile or a pre-commit hook without extra glue.
 | `tools/nb_strip.py` | Strips notebook outputs in place |
 | `examples/patch_template.py` | Cell-targeted notebook patch script (the rewrite alternative) |
 | `examples/AGENTS.md.sample` | Directory conventions that keep the agent out of hot files |
+| `.github/workflows/context-budget.yml` | CI job that fails when the repo gets too expensive |
+
+## Measured result
+
+Applying the mitigations in stages to that session's actual directory, with the
+auditor re-run after each stage:
+
+| stage | hot tokens, one full read |
+|---|---:|
+| baseline | 273,468 |
+| delete 6 superseded artifacts | 100,895 |
+| strip remaining notebook outputs | 100,880 |
+| move generators aside **and declare them off-limits** | 55,418 |
+
+**4.9×**, without changing a line of the actual work. Two of those rows are
+nearly flat, and [`docs/03-mitigations.md`](docs/03-mitigations.md) explains why
+rather than hiding it — the second and third mitigations overlap, and moving
+files into a subdirectory achieves nothing unless the agent is told to skip it.
 
 ## The short list, if you read nothing else
 
