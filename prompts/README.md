@@ -9,6 +9,7 @@ The docs explain the mechanism. These are the things you actually paste.
 | [`mid-session.md`](mid-session.md) | You notice it happening halfway through. Corrective prompts. |
 | [`checkpoint.md`](checkpoint.md) | Ending a session deliberately, before the limit ends it for you. |
 | [`resume.md`](resume.md) | First message of the fresh session that continues the work. |
+| [`../docs/06-when-it-happens.md`](../docs/06-when-it-happens.md) | It already hit. Triage and recovery — read before you paste `resume.md`. |
 | [`../examples/AGENTS.md.sample`](../examples/AGENTS.md.sample) | Permanent version — put it in the repo so you never paste anything |
 
 ## Which one do I need?

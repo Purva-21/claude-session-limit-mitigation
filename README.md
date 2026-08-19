@@ -164,9 +164,11 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
 | [`docs/04-reproduction.md`](docs/04-reproduction.md) | How to reproduce and how to measure it yourself |
 | [`docs/05-checklist.md`](docs/05-checklist.md) | One-page checklist to paste into your own runbook |
+| [`docs/06-when-it-happens.md`](docs/06-when-it-happens.md) | **Incident runbook** — the 90-second landing, and cold recovery with no checkpoint |
 | [`prompts/`](prompts/) | **Copy-paste prompts** — session start, mid-session corrections, checkpoint, resume |
 | `tools/prep_workspace.sh` | One command that applies the cleanup mitigations |
 | `tools/context_audit.py` | Scans a directory, reports re-injection cost |
+| `tools/salvage.py` | Post-kill triage: corrupt files, competing versions, git state |
 | `tools/nb_strip.py` | Strips notebook outputs in place |
 | `examples/patch_template.py` | Cell-targeted notebook patch script (the rewrite alternative) |
 | `examples/AGENTS.md.sample` | Directory conventions that keep the agent out of hot files |
@@ -205,6 +207,12 @@ mutated.)
 5. Batch verification into one command instead of ten.
 6. Delete intermediates the moment they are consumed.
 7. Checkpoint by delivering a re-runnable artifact, then start a fresh session.
+
+**And if it hits anyway:** don't tell a fresh session to "carry on". Run
+`python3 tools/salvage.py . --write-state` first — an abrupt kill leaves
+half-written files, and an agent editing on top of corruption produces
+confident nonsense. Full runbook in
+[`docs/06-when-it-happens.md`](docs/06-when-it-happens.md).
 
 ## Licence
 

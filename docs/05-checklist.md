@@ -36,6 +36,17 @@ Paste this into your own runbook.
 - [ ] Re-run the audit — the directory grows during a session.
 - [ ] If the checkpoint is complete, **start a fresh session.**
 
+## After a session is killed
+
+- [ ] **Do not** open a fresh session and say "carry on".
+- [ ] `python3 tools/salvage.py . --since 120 --write-state`
+- [ ] Fix anything corrupt — `git checkout`, or re-run the patch script.
+- [ ] Pick the authoritative version of every competing pair.
+- [ ] Fill in `STATE.draft.md` by hand — especially "ruled out and why".
+- [ ] `tools/prep_workspace.sh . --apply` (the directory grew all session).
+- [ ] Open the new session with `prompts/resume.md`.
+- [ ] Ask: was work *lost* or only *delayed*? Only "lost" needs a fix.
+
 ## Red flags that you are burning budget invisibly
 
 - A one-line fix required regenerating a file larger than 20 KB.

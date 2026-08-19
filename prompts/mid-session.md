@@ -84,3 +84,16 @@ Then stop. I'll continue in a fresh session.
 
 Follow that with [`checkpoint.md`](checkpoint.md) if you want the fuller
 version.
+
+---
+
+## It already hit and the session is gone
+
+Nothing to paste — the next session must not start by editing. Run triage on
+the directory first:
+
+```bash
+python3 tools/salvage.py . --since 120 --write-state
+```
+
+Then follow [`../docs/06-when-it-happens.md`](../docs/06-when-it-happens.md).
