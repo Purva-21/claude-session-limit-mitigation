@@ -59,24 +59,55 @@ The mitigations in [`docs/03-mitigations.md`](docs/03-mitigations.md) work
 regardless of which layer is responsible, because they reduce the input the
 session has to carry.
 
-## Quick start
+## How to stop it happening — one command and one prompt
+
+**Step 1 — fix the directory.** One command, dry-run by default:
 
 ```bash
-git clone <this repo>
-cd claude-session-limit-mitigation
+tools/prep_workspace.sh /path/to/your/project            # show what it would do
+tools/prep_workspace.sh /path/to/your/project --apply    # do it
+```
 
-# Audit the directory you're about to point an agent at
-python3 tools/context_audit.py /path/to/your/project
+It audits, strips notebook outputs, moves large generated files into
+`artifacts/` (moves — it never deletes), installs an `AGENTS.md` declaring that
+directory off-limits, and re-audits. Run against the directory from this
+session:
 
-# Strip notebook outputs (usually the single biggest win)
-python3 tools/nb_strip.py /path/to/your/project --inplace
+```
+before :  277,530 tok   (5.5x a 200k budget)
+after  :   40,314 tok   (0.8x)
+```
 
-# Optional: fail CI / a pre-flight check if the directory is too expensive
+**6.9× in one command.** Afterwards, look in `artifacts/` and move back
+anything you're actually editing — size is a proxy for "generated", and the
+script cannot tell your deliverable from a stale build.
+
+**Step 2 — tell the agent the rules.** Paste
+[`prompts/session-start.md`](prompts/session-start.md) as your first message.
+If you want one sentence instead of a page, use
+[`prompts/one-liner.txt`](prompts/one-liner.txt):
+
+> Work in small diffs: never regenerate a file over 20KB — write a patch script
+> that edits the specific parts and run it. Keep generated artifacts out of the
+> working directory. Batch all checks into one command. Before you tell me a
+> report is wrong, diff the delivered file against your local copy.
+
+**Step 3 — for a project you'll return to,** commit
+[`examples/AGENTS.md.sample`](examples/AGENTS.md.sample) as `AGENTS.md` at the
+repo root and stop pasting anything. Most harnesses read it automatically.
+
+That's the whole fix. Everything below is why it works and how it was measured.
+
+### Individual tools
+
+```bash
+python3 tools/context_audit.py PATH            # what will this cost me?
+python3 tools/nb_strip.py PATH --inplace       # strip notebook outputs
 python3 tools/context_audit.py . --budget 200000 || echo "too heavy"
 ```
 
 `context_audit.py` exits `1` when the modelled worst case exceeds the budget, so
-it drops into a Makefile or a pre-commit hook without extra glue.
+it drops into a Makefile, a pre-commit hook or CI without extra glue.
 
 ## Contents
 
@@ -87,6 +118,8 @@ it drops into a Makefile or a pre-commit hook without extra glue.
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
 | [`docs/04-reproduction.md`](docs/04-reproduction.md) | How to reproduce and how to measure it yourself |
 | [`docs/05-checklist.md`](docs/05-checklist.md) | One-page checklist to paste into your own runbook |
+| [`prompts/`](prompts/) | **Copy-paste prompts** — session start, mid-session corrections, checkpoint, resume |
+| `tools/prep_workspace.sh` | One command that applies the cleanup mitigations |
 | `tools/context_audit.py` | Scans a directory, reports re-injection cost |
 | `tools/nb_strip.py` | Strips notebook outputs in place |
 | `examples/patch_template.py` | Cell-targeted notebook patch script (the rewrite alternative) |

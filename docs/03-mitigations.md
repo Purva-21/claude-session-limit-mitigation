@@ -4,6 +4,13 @@ Ranked by measured or estimated effect in the session described in
 [01-observed-behaviour.md](01-observed-behaviour.md). Each entry states what to
 do, why it works, and how to verify it worked.
 
+> **In a hurry?** M1–M3 and M7 are automated:
+> `tools/prep_workspace.sh /path/to/project --apply` — measured at **6.9×** on
+> the session's directory (277,530 → 40,314 tokens). M4–M6, M8 and M9 are
+> behavioural, so they live in [`../prompts/`](../prompts/) instead: paste
+> `prompts/session-start.md` at the top of the session, or commit
+> `examples/AGENTS.md.sample` as `AGENTS.md` and forget about it.
+
 ---
 
 ## M1 — Audit the working directory before you start (biggest single win)

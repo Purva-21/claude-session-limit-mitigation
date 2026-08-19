@@ -4,6 +4,10 @@ Paste this into your own runbook.
 
 ## Before starting a long agent session
 
+> Automated: `tools/prep_workspace.sh /path/to/project --apply` covers the first
+> four boxes. Then paste `prompts/session-start.md` for the "During" section.
+
+
 - [ ] `python3 tools/context_audit.py .` — is the worst case under budget?
 - [ ] No file in the top-10 that you wouldn't open by hand.
 - [ ] Notebook outputs stripped (`tools/nb_strip.py --inplace`, or install

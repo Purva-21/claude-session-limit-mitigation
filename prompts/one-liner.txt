@@ -1,0 +1,4 @@
+Work in small diffs: never regenerate a file over 20KB — write a patch script
+that edits the specific parts and run it. Keep generated artifacts out of the
+working directory. Batch all checks into one command. Before you tell me a
+report is wrong, diff the delivered file against your local copy.
