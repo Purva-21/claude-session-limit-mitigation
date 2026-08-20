@@ -62,9 +62,20 @@ Then start `gemini` **in that directory**.
 
 ## 4. The runs
 
-Do these as separate turns, in one session, in this order. Call `/stats` after
-every single one — it reports session token usage and cached-token savings
+Do these as **separate turns**, in one session, in this order. Call `/stats`
+after every single one — it reports session token usage and cached-token savings
 ([commands reference](https://google-gemini.github.io/gemini-cli/docs/cli/commands.html)).
+
+> **Check the read wasn't truncated before you go past turn 0.** After the read,
+> ask it to quote lines 30, 400 and 770 verbatim. If any of the file was elided,
+> it was never fully in context and nothing can be re-sent — you'd be measuring
+> nothing and recording it as a null. Shrink the file to 200 lines and repeat.
+> A first run of this protocol on another harness failed exactly here.
+
+> **One intervention per turn, and check at the start of the *next* turn.**
+> Resync notices may arrive as system messages at a turn boundary rather than in
+> the tool result. `/stats` is immune to this since it reports cumulative
+> session totals, but the qualitative "did content come back" question is not.
 
 | # | Turn | Record |
 |---|---|---|
