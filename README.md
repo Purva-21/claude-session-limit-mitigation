@@ -22,27 +22,40 @@ turn for work that produced a twenty-line diff. Auditing the working directory
 and switching from *rewrite* to *patch* cut the per-turn cost by roughly an
 order of magnitude.
 
-## The problem as a loop
+## The mechanism in one picture
+
+Everything turns on one fork: **can the harness attribute the change to itself?**
 
 ```mermaid
 flowchart TD
-    A["Agent reads a file<br/>to work on it"] --> B["File contents<br/>enter context"]
-    B --> C["Agent edits the file<br/><i>(a 20-line diff)</i>"]
-    C --> D{"File changed<br/>on disk"}
-    D -->|"harness re-sends<br/>current contents"| B
-    C --> E["Build step writes<br/>a new artifact"]
-    E --> D
+    A["Agent reads a file"] --> B["Contents in context.<br/>Harness tracks its state."]
+    B --> C{"File gets modified.<br/><b>By what?</b>"}
 
-    B -.->|"cost per turn =<br/><b>size of the file</b>,<br/>not size of the edit"| F["Context fills"]
-    F --> G["Session limit"]
-    G --> H["Work in flight is lost,<br/>not merely delayed"]
+    C -->|"<b>Edit / Write</b><br/>harness made the change,<br/>so it knows the diff"| OK["No re-sync.<br/><i>'file state is current<br/>in your context'</i>"]
+    C -->|"<b>Bash · script · build step</b><br/>harness sees bytes that no longer<br/>match, and cannot attribute why"| RS["Re-sync:<br/>send the file back"]
 
-    style G fill:#c0392b,color:#fff
-    style H fill:#c0392b,color:#fff
-    style F fill:#e67e22,color:#fff
+    OK --> FREE(["<b>0 bytes.</b><br/>37 of 37 calls clean"])
+
+    RS --> AMP["Sends a <b>window</b>, not a diff<br/>562 B edit → 8,156 B<br/><b>14.5×</b>"]
+    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes sent twice<br/>3 of 11 events · <b>21.5%</b>"]
+
+    AMP --> B
+    DUP --> B
+    AMP --> FILL["Context fills"]
+    FILL --> LIM["Session limit"]
+    LIM --> LOST["Work in flight is<br/><b>lost</b>, not delayed"]
+
+    style OK fill:#27ae60,color:#fff
+    style FREE fill:#27ae60,color:#fff
+    style RS fill:#e67e22,color:#fff
+    style AMP fill:#e67e22,color:#fff
+    style DUP fill:#c0392b,color:#fff
+    style LIM fill:#c0392b,color:#fff
+    style LOST fill:#c0392b,color:#fff
 ```
 
-`B → C → D → B` is the entire failure. Four more diagrams — what it cost,
+The left branch is the whole mitigation: an `Edit` costs nothing because the
+harness already knows what changed. Five more diagrams — where the bytes went,
 rebuild vs. patch, the fix as a decision tree, and the shape of a checkpointed
 task — are in [`docs/00-diagrams.md`](docs/00-diagrams.md).
 

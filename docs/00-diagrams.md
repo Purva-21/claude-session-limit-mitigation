@@ -1,41 +1,75 @@
 # 00 — Diagrams
 
-Five pictures: what the problem is, why it compounds, what it costs, how to fix
-it, and how a long task should be shaped. All Mermaid, so they render inline on
-GitHub.
+Six pictures: the mechanism, where the cost went, what it compounds into, how to
+fix it, and how a long task should be shaped. All Mermaid, so they render inline
+on GitHub.
 
 ---
 
-## 1. The problem, in one picture
+## 1. The mechanism — what decides whether an edit is free
 
-Each turn re-pays for the whole working directory, not for the size of the
-change.
+Everything turns on one fork: **can the harness attribute the change to itself?**
 
 ```mermaid
 flowchart TD
-    A["Agent reads a file<br/>to work on it"] --> B["File contents<br/>enter context"]
-    B --> C["Agent edits the file<br/><i>(a 20-line diff)</i>"]
-    C --> D{"File changed<br/>on disk"}
-    D -->|"harness re-sends<br/>current contents"| B
-    C --> E["Build step writes<br/>a new artifact"]
-    E --> D
+    A["Agent reads a file"] --> B["Contents in context.<br/>Harness tracks its state."]
+    B --> C{"File gets modified.<br/><b>By what?</b>"}
 
-    B -.->|"cost per turn =<br/><b>size of the file</b>,<br/>not size of the edit"| F["Context fills"]
-    F --> G["Session limit"]
-    G --> H["Work in flight is lost,<br/>not merely delayed"]
+    C -->|"<b>Edit / Write</b><br/>harness made the change,<br/>so it knows the diff"| OK["No re-sync.<br/><i>'file state is current<br/>in your context'</i>"]
+    C -->|"<b>Bash · script · build step</b><br/>harness sees bytes that no longer<br/>match, and cannot attribute why"| RS["Re-sync:<br/>send the file back"]
 
-    style G fill:#c0392b,color:#fff
-    style H fill:#c0392b,color:#fff
-    style F fill:#e67e22,color:#fff
+    OK --> FREE(["<b>0 bytes.</b><br/>37 of 37 calls clean"])
+
+    RS --> AMP["Sends a <b>window</b>, not a diff<br/>562 B edit → 8,156 B<br/><b>14.5×</b>"]
+    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes sent twice<br/>3 of 11 events · <b>21.5%</b>"]
+
+    AMP --> B
+    DUP --> B
+    AMP --> FILL["Context fills"]
+    FILL --> LIM["Session limit"]
+    LIM --> LOST["Work in flight is<br/><b>lost</b>, not delayed"]
+
+    style OK fill:#27ae60,color:#fff
+    style FREE fill:#27ae60,color:#fff
+    style RS fill:#e67e22,color:#fff
+    style AMP fill:#e67e22,color:#fff
+    style DUP fill:#c0392b,color:#fff
+    style LIM fill:#c0392b,color:#fff
+    style LOST fill:#c0392b,color:#fff
 ```
 
-The loop `B → C → D → B` is the whole story. It is correct behaviour — an agent
-editing against a stale copy of a file produces broken patches — but it means
-the steady-state cost of a turn is set by **what is in the directory**, not by
-what you asked for.
+The re-sync itself is **correct behaviour** — an agent patching against a stale
+copy produces broken patches. What makes it expensive is that it re-sends a slice
+of the file when it could send a diff, and that it sometimes sends the same bytes
+twice.
 
-> Status: the re-injection step is inferred, not directly observed. See
-> [02-root-cause.md](02-root-cause.md).
+The left branch is the whole mitigation: an `Edit` costs nothing because the
+harness already knows what changed.
+
+> Status: **measured**, from the session transcript via
+> [`tools/transcript_forensics.py`](../tools/transcript_forensics.py). Only the
+> queue-flush explanation for the duplicates is inferred; the duplicates
+> themselves are byte-identical and counted. Full write-up:
+> [07-the-actual-bug.md](07-the-actual-bug.md).
+
+---
+
+## 1b. Anatomy of the 13 re-injections
+
+Where the 57,631 re-injected bytes came from, by what preceded them.
+
+```mermaid
+pie showData
+    title Re-injected bytes by trigger
+    "Bash / script-mediated edits" : 30247
+    "Initial reads (legitimate)" : 16326
+    "SendUserFile — a read-only op" : 11058
+```
+
+Two of the thirteen were genuine first reads. The other eleven were re-syncs of
+files already in context — and **not one** of them followed an `Edit` or
+`Write`. The `SendUserFile` slice is the oddest: it modifies nothing, which is
+what points at a delayed queue flush rather than a fresh detection.
 
 ---
 
@@ -65,6 +99,11 @@ output and superseded versions. The task itself was the small slice.
 ## 3. The two habits that compound it
 
 Same one-line change, two ways of applying it.
+
+> **Read with diagram 1 in mind.** The patch script wins here *because the
+> notebook was never read into context*. Run the same script against a file the
+> agent has already read and you pay for the script **and** a full re-sync — see
+> the corrected rule in [03-mitigations.md](03-mitigations.md#m4--emit-a-patch-script-never-a-rebuilt-file).
 
 ```mermaid
 sequenceDiagram
@@ -109,6 +148,8 @@ flowchart TD
     PREP --> P1["strip notebook outputs"]
     PREP --> P2["move &gt;50KB files → artifacts/"]
     PREP --> P3["install AGENTS.md<br/>declaring artifacts/ off-limits"]
+    PREP --> P4["<b>edit in-context files with Edit,<br/>never with shell scripts</b>"]
+    P4 --> RE
     P1 --> RE["re-audit"]
     P2 --> RE
     P3 --> RE

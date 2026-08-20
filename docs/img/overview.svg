@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="430" viewBox="0 0 880 430" font-family="Helvetica, Arial, sans-serif">
-  <rect width="880" height="430" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="466" viewBox="0 0 880 466" font-family="Helvetica, Arial, sans-serif">
+  <rect width="880" height="466" fill="#ffffff"/>
 
   <text x="24" y="34" font-size="19" font-weight="bold" fill="#1a1a1a">Session limits are paid in re-reading, not in writing</text>
   <text x="24" y="57" font-size="13" fill="#666">Estimated tokens for one full read of the working directory. Measured, this repo's own case study.</text>
@@ -28,7 +28,7 @@
   <rect x="299" y="238" width="255" height="66" fill="#eaf7ef" stroke="#27ae60" stroke-width="1.5" rx="4"/>
   <text x="315" y="260" font-size="12.5" font-weight="bold" fill="#1e8449">2 · Fix the behaviour</text>
   <text x="315" y="279" font-size="11.5" fill="#333">paste prompts/session-start.md</text>
-  <text x="315" y="295" font-size="11" fill="#666">patch, don't rebuild · batch checks</text>
+  <text x="315" y="295" font-size="11" fill="#666">Edit not shell · batch checks</text>
 
   <rect x="574" y="238" width="260" height="66" fill="#eaf7ef" stroke="#27ae60" stroke-width="1.5" rx="4"/>
   <text x="590" y="260" font-size="12.5" font-weight="bold" fill="#1e8449">3 · Make it permanent</text>
@@ -43,5 +43,7 @@
   <text x="84" y="382" font-size="12" fill="#fff" text-anchor="middle">40,314</text>
   <text x="489" y="382" font-size="12.5" fill="#888" text-anchor="middle">headroom</text>
 
-  <text x="24" y="420" font-size="11.5" fill="#777">No code changed. The task was identical; only what sat within the agent's reach was different.</text>
+  <text x="24" y="418" font-size="11.5" fill="#777">No code changed. The task was identical; only what sat within the agent's reach was different.</text>
+  <text x="24" y="435" font-size="11.5" fill="#777">Mechanism, measured from the transcript: a file in context is re-sent whenever it is changed by something the harness</text>
+  <text x="24" y="450" font-size="11.5" fill="#777">cannot attribute to its own edit tools. 37 Edit/Write calls triggered 0 re-sends; all 11 re-sends followed a shell change.</text>
 </svg>
