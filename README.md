@@ -209,6 +209,8 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | [`docs/00-diagrams.md`](docs/00-diagrams.md) | **Five diagrams** — the problem, its cost, rebuild vs patch, the fix, the shape of a long task |
 | [`docs/07-the-actual-bug.md`](docs/07-the-actual-bug.md) | **The forensics** — what triggers re-injection, measured from the transcript |
 | [`docs/08-vendor-report.md`](docs/08-vendor-report.md) | Paste-ready bug report, with an explicit list of what it does *not* claim |
+| [`docs/09-gemini-cli-runsheet.md`](docs/09-gemini-cli-runsheet.md) | Step-by-step replication on Gemini CLI, using its own telemetry for hard numbers |
+| [`docs/10-replication-results.md`](docs/10-replication-results.md) | **The cross-tool table** — one row per harness, null results included |
 | [`docs/01-observed-behaviour.md`](docs/01-observed-behaviour.md) | What actually happened, with numbers and timestamps |
 | [`docs/02-root-cause.md`](docs/02-root-cause.md) | Mechanism — observation vs. inference, kept separate |
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
@@ -219,6 +221,7 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | `tools/prep_workspace.sh` | One command that applies the cleanup mitigations |
 | `tools/context_audit.py` | Scans a directory, reports re-injection cost |
 | `tools/transcript_forensics.py` | Parses a session transcript: where the input tokens actually went |
+| `tools/gemini_telemetry_parse.py` | Reads Gemini CLI's OTEL log for per-turn input-token deltas |
 | `tools/salvage.py` | Post-kill triage: corrupt files, competing versions, git state |
 | `tools/nb_strip.py` | Strips notebook outputs in place |
 | `examples/patch_template.py` | Cell-targeted notebook patch script (the rewrite alternative) |
