@@ -89,6 +89,21 @@ open by hand.
 
 ## M4 — Emit a patch script, never a rebuilt file
 
+> **Corrected after transcript forensics — see
+> [07-the-actual-bug.md](07-the-actual-bug.md).** A patch script runs via the
+> shell. If the target file is *already in context*, running it triggers a
+> full-file resync and you pay twice. The rule below is right only when the
+> target was **never read into context**. For a file already in context, the
+> `Edit` tool is strictly cheaper: 37 `Edit`/`Write` calls in the measured
+> session produced **zero** re-injections.
+>
+> | situation | cheapest tool |
+> |---|---|
+> | in context, small change | `Edit` |
+> | in context, large restructure | `Edit` repeatedly, or accept one resync |
+> | never read, any change | patch script via shell — free |
+> | huge, and avoidable | **don't read it**; script every change |
+
 **Do:** when a large structured file (notebook, JSON, generated config) needs
 changing, write a script that mutates the specific cells or keys, and run it.
 See `examples/patch_template.py`.

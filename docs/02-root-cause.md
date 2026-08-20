@@ -1,11 +1,16 @@
 # 02 — Mechanism
 
-> **Status: inference.** The observations in
-> [01-observed-behaviour.md](01-observed-behaviour.md) are direct. This file is
-> a hypothesis that fits them. Harness internals — what exactly gets re-injected
-> into context, and when — are not inspectable from inside a session, and no
-> token meter was available. Read this as "the best available explanation",
-> not as a confirmed defect report.
+> **Status: superseded in part — read [07-the-actual-bug.md](07-the-actual-bug.md)
+> first.** This file was written as a hypothesis, before the session transcript
+> was examined. The transcript has since been parsed
+> ([`tools/transcript_forensics.py`](../tools/transcript_forensics.py)) and the
+> core mechanism is now **measured**: re-injection fires when a file already in
+> context is modified out of band (by a shell command or script), and never
+> after an `Edit`/`Write` — 37 in-context edits produced 0 re-injections, while
+> every one of the 11 re-syncs followed a shell-mediated change.
+>
+> The reasoning below still holds and is worth reading for the alternatives it
+> rules out. But where this file says "inferred", doc 07 has the number.
 
 ## The claim
 

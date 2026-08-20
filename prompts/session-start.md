@@ -20,10 +20,18 @@ WORKING DIRECTORY
 - Never leave two versions of the same artifact in place. Supersede, don't
   accumulate.
 
-EDITING
+EDITING  <-- the highest-value rules; measured, not guessed
+- Use the Edit tool for any file you have already read. Do NOT edit such files
+  with shell heredocs, sed, or python -c: a change the harness cannot attribute
+  to its own edit tools forces a full re-sync of that file into context, at
+  roughly 14x the size of the actual diff.
+- Batching four small edits into one shell script is a false economy. Four Edit
+  calls cost nothing; one shell script costs four re-syncs.
+- Files you have NEVER read are free to modify by script, at any size. So
+  decide early which large files you will read, keep that set tiny, and touch
+  everything else only through scripts.
 - Never regenerate a file over 20KB. Write a patch script that mutates the
   specific cells/keys/lines, run it, and keep the script.
-- Prefer targeted edits over rewriting a file you have already read.
 - For notebooks: never write stored outputs back to disk. Strip them.
 
 VERIFYING

@@ -70,20 +70,51 @@ The four worst offenders were all notebooks the task itself generated:
 produced. It sat in the working directory for the entire session as a 46k-token
 liability.
 
-## Is this "a bug in Claude Opus 5"?
+## What actually triggers the re-reading
 
-Honest answer: **not demonstrably, and this repo does not claim it is.** What is
-directly observable from inside a session is the effect — the limit arriving far
-sooner than the visible work justifies. The dominant *measurable* contributor is
-context amplification at the harness level (file-change re-injection ×
-oversized working directory), not a model reasoning defect. Harness internals
-are not inspectable from inside the session, so [`docs/02-root-cause.md`](docs/02-root-cause.md)
-is explicitly labelled as inference and separates what was observed from what is
-hypothesised.
+Not a guess — [`docs/07-the-actual-bug.md`](docs/07-the-actual-bug.md) parses
+the session transcript and pins it down:
 
-The mitigations in [`docs/03-mitigations.md`](docs/03-mitigations.md) work
-regardless of which layer is responsible, because they reduce the input the
-session has to carry.
+> **A file already in context is re-sent in full whenever it is modified by
+> something the harness cannot attribute to its own edit tools** — a shell
+> command, a script, a build step.
+
+The control is clean:
+
+| | count |
+|---|---:|
+| `Edit` / `Write` calls | **37** |
+| re-injections that followed one | **0** |
+| re-injections that followed a shell-mediated change | **11** |
+
+After an `Edit` the harness reports *"file state is current in your context"* —
+it made the change, so it knows. After a shell command it doesn't, so it
+resynchronises by re-sending the file. Three consequences, in ascending order
+of how much they look like bugs:
+
+1. **The resync is a window, not a diff.** A 562-byte edit to this README cost
+   **8,156 bytes** of context — 14.5×. Both versions are known to the harness;
+   a diff would carry the same information.
+2. **Identical content was re-sent.** Three of eleven re-injections were
+   byte-identical repeats (same MD5), delivered on the first turn after an idle
+   gap for files that hadn't changed. 8,895 bytes — **21.5% of all re-injected
+   bytes** — was content the agent already had verbatim.
+3. **A read-only operation appears to trigger it.** Four re-injections follow
+   `SendUserFile`, which modifies nothing — consistent with a delivery queue
+   that isn't cleared when it flushes.
+
+Reproduce on your own session:
+
+```bash
+python3 tools/transcript_forensics.py ~/.claude/projects/*/<session-id>.jsonl
+```
+
+**Is it "a bug in Claude Opus 5"?** No — and the distinction matters. Items 2
+and 3 look like defects, but they are in the *harness's* file-tracking layer,
+not in the model's reasoning. And the largest contributor of all is neither:
+it's an oversized working directory plus the choice to edit in-context files
+through shell scripts instead of `Edit`. Doc 07 traces the full causal chain
+and is honest that only the last two links belong to the harness.
 
 ## How to stop it happening — one command and one prompt
 
@@ -159,6 +190,7 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | path | what it is |
 |---|---|
 | [`docs/00-diagrams.md`](docs/00-diagrams.md) | **Five diagrams** — the problem, its cost, rebuild vs patch, the fix, the shape of a long task |
+| [`docs/07-the-actual-bug.md`](docs/07-the-actual-bug.md) | **The forensics** — what triggers re-injection, measured from the transcript |
 | [`docs/01-observed-behaviour.md`](docs/01-observed-behaviour.md) | What actually happened, with numbers and timestamps |
 | [`docs/02-root-cause.md`](docs/02-root-cause.md) | Mechanism — observation vs. inference, kept separate |
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
@@ -168,6 +200,7 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | [`prompts/`](prompts/) | **Copy-paste prompts** — session start, mid-session corrections, checkpoint, resume |
 | `tools/prep_workspace.sh` | One command that applies the cleanup mitigations |
 | `tools/context_audit.py` | Scans a directory, reports re-injection cost |
+| `tools/transcript_forensics.py` | Parses a session transcript: where the input tokens actually went |
 | `tools/salvage.py` | Post-kill triage: corrupt files, competing versions, git state |
 | `tools/nb_strip.py` | Strips notebook outputs in place |
 | `examples/patch_template.py` | Cell-targeted notebook patch script (the rewrite alternative) |
