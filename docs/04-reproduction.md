@@ -43,10 +43,10 @@ echo "stage 0 baseline            : $(A)"
 
 # stage 1 -- delete superseded / never-read artifacts
 rm -f /tmp/audit_demo/executed_solution.ipynb \
-      /tmp/audit_demo/epithelial_activity_scicode_solution.ipynb \
-      /tmp/audit_demo/epithelial_activity_scicode_task.ipynb \
-      /tmp/audit_demo/scicode_epithelial_activity_length_scale.ipynb \
-      /tmp/audit_demo/epithelial_activity_scicode.json \
+      /tmp/audit_demo/epithelial_activity_solution.ipynb \
+      /tmp/audit_demo/epithelial_activity_task.ipynb \
+      /tmp/audit_demo/epithelial_activity_length_scale.ipynb \
+      /tmp/audit_demo/epithelial_activity.json \
       /tmp/audit_demo/task1770.ipynb
 echo "stage 1 superseded removed  : $(A)"
 

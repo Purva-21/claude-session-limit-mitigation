@@ -78,8 +78,8 @@ Declare it. An `AGENTS.md` or `CLAUDE.md` at the repo root is read by most
 agent harnesses — see `examples/AGENTS.md.sample`.
 
 **Why:** four superseded notebooks (`executed_solution.ipynb`,
-`epithelial_activity_scicode_{task,solution}.ipynb`,
-`scicode_..._length_scale.ipynb`) carried roughly 110k estimated tokens and
+`epithelial_activity_{task,solution}.ipynb`,
+`..._length_scale.ipynb`) carried roughly 110k estimated tokens and
 were consumed by nothing after the round that produced them.
 
 **Verify:** the auditor's top-10 should contain only files you would actually

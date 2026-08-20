@@ -48,7 +48,7 @@ after the round that produced it.
 pie showData
     title Working directory, estimated tokens (top files)
     "executed_solution.ipynb (never re-read)" : 46641
-    "scicode_...length_scale.ipynb (superseded)" : 34217
+    "...length_scale.ipynb (superseded)" : 34217
     "task1770.ipynb (superseded by patched)" : 30266
     "task1770_patched.ipynb (the deliverable)" : 26161
     "epithelial_...solution.ipynb (superseded)" : 22050

@@ -7,7 +7,7 @@ inferred; inference lives in [02-root-cause.md](02-root-cause.md).
 
 A single long-running Claude Opus 5 Cowork session, spanning roughly three
 calendar days (17–19 Aug 2026), whose task was to build, validate and repair a
-SciCode benchmark notebook: a 31-cell Jupyter notebook with two subproblems and
+benchmark notebook: a 31-cell Jupyter notebook with two subproblems and
 one main problem, plus a reference solution, a test suite, a mutation-testing
 harness and a QC validator.
 
@@ -79,13 +79,13 @@ Full ranking of the files large enough to matter:
 | file | bytes | est. tokens | severity |
 |---|---:|---:|---|
 | `executed_solution.ipynb` | 167,909 | 46,641 | critical |
-| `scicode_epithelial_activity_length_scale.ipynb` | 123,182 | 34,217 | critical |
+| `epithelial_activity_length_scale.ipynb` | 123,182 | 34,217 | critical |
 | `task1770.ipynb` | 108,956 | 30,266 | critical |
 | `task1770_patched.ipynb` | 94,178 | 26,161 | critical |
-| `epithelial_activity_scicode_solution.ipynb` | 79,379 | 22,050 | high |
+| `epithelial_activity_solution.ipynb` | 79,379 | 22,050 | high |
 | `example.ipynb` | 74,130 | 20,592 | high |
-| `epithelial_activity_scicode_task.ipynb` | 72,579 | 20,161 | high |
-| `epithelial_activity_scicode.json` | 69,257 | 19,238 | high |
+| `epithelial_activity_task.ipynb` | 72,579 | 20,161 | high |
+| `epithelial_activity.json` | 69,257 | 19,238 | high |
 | `steps.py` | 64,403 | 17,890 | high |
 | `steps3.py` | 38,811 | 10,781 | medium |
 | `steps3_main.py` | 32,601 | 9,056 | medium |
@@ -101,7 +101,7 @@ the most likely to be re-injected on change — totalled **2,337 lines /
 ## What stands out in that table
 
 1. **Most of the weight is build output, not source.** `executed_solution.ipynb`
-   was produced once and never read again. `epithelial_activity_scicode*` were
+   was produced once and never read again. `epithelial_activity_*` were
    superseded artifacts from an earlier structure. Together they carried close
    to 110k estimated tokens of pure liability.
 

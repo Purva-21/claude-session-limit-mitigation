@@ -3,7 +3,8 @@
 ![Before and after: 277,530 tokens reduced to 40,314](docs/img/overview.svg)
 
 A field report and a toolkit. During a multi-day task (building and debugging a
-SciCode benchmark notebook) a Claude Opus 5 Cowork session repeatedly hit its
+scientific-computing benchmark notebook) a Claude Opus 5 Cowork session
+repeatedly hit its
 session limit mid-work — including killing a sub-agent in the middle of a
 measurement run, which destroyed the result rather than merely delaying it.
 
@@ -62,7 +63,7 @@ The four worst offenders were all notebooks the task itself generated:
 | file | est. tokens | of which stored outputs |
 |---|---|---|
 | `executed_solution.ipynb` | 46,641 | ~108 KB of 163 KB |
-| `scicode_..._length_scale.ipynb` | 34,217 | ~21 KB of 120 KB |
+| `..._length_scale.ipynb` | 34,217 | ~21 KB of 120 KB |
 | `task1770.ipynb` | 30,266 | ~27 KB of 106 KB |
 | `task1770_patched.ipynb` | 26,161 | — |
 
