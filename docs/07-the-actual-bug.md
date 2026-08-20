@@ -259,8 +259,8 @@ could be universal or could be an artefact of this specific setup, and I cannot
 tell which from inside it.
 
 [`prompts/replication-test.md`](../prompts/replication-test.md) is a neutral
-five-minute A/B you can run on Cursor, Gemini CLI, Windsurf, Cline, Aider or
-another Claude harness: make the same edit with the native edit tool, then with
+five-minute A/B you can run on another coding agent or another Claude harness:
+make the same edit with the native edit tool, then with
 a shell command, then with a `touch` that changes nothing, and compare what
 comes back. It is deliberately written not to lead the model, and it treats a
 null result as a first-class finding — a harness that handles this correctly is

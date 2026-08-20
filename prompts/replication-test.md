@@ -6,8 +6,7 @@ outside the setup that produced it. The only way to find out is more data
 points.
 
 This is a controlled A/B you can run in about five minutes on **any** coding
-agent — Claude Code, Cursor, Gemini CLI, Windsurf, Cline, Aider, Copilot
-Workspace, whatever you use.
+agent — Claude Code or whatever you use.
 
 ---
 

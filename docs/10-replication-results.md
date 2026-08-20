@@ -5,7 +5,6 @@ a harness that handles this correctly is the most valuable entry in the table,
 because it proves the cost is a choice rather than a law.
 
 Protocol: [`prompts/replication-test.md`](../prompts/replication-test.md).
-Gemini CLI specifics: [09-gemini-cli-runsheet.md](09-gemini-cli-runsheet.md).
 
 ---
 
@@ -19,10 +18,6 @@ absolute floor, not a delta.
 |---|---|---|---:|---:|---:|---:|---|
 | Claude Code / Cowork | *(session of 17–19 Aug 2026)* | claude-opus-5 | n/a | **0** | resync | not tested | Re-sync on shell-mediated writes only; 14.5× amplification; 34.4% duplicates |
 | claude.ai (`view` / `bash_tool`) | 20 Aug 2026 | Claude | n/a | no content | no content | no content | **INCONCLUSIVE** — precondition failed + wrong observation window. See below |
-| Gemini CLI | | | | | | | |
-| Aider | | | | | | | |
-| Cline | | | | | | | |
-| Cursor | | | | | | | |
 | | | | | | | | |
 
 > The Claude row is filled from transcript parsing rather than the A/B/C
@@ -107,31 +102,6 @@ All three biases point the same way: **toward a false negative.**
   invocation starts fresh. Incidental, but consistent with Cowork behaviour.
 
 **Retest required** with the multi-turn protocol and a 200-line file.
-
-### Gemini CLI
-
-*(fill in)*
-
-Raw `/stats` output:
-
-```
-```
-
-`gemini --version`:
-
-Notes:
-
-### Aider
-
-*(fill in)*
-
-### Cline
-
-*(fill in)*
-
-### Cursor
-
-*(fill in)*
 
 ---
 
