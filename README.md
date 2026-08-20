@@ -34,10 +34,10 @@ flowchart TD
     C -->|"<b>Edit / Write</b><br/>harness made the change,<br/>so it knows the diff"| OK["No re-sync.<br/><i>'file state is current<br/>in your context'</i>"]
     C -->|"<b>Bash · script · build step</b><br/>harness sees bytes that no longer<br/>match, and cannot attribute why"| RS["Re-sync:<br/>send the file back"]
 
-    OK --> FREE(["<b>0 bytes.</b><br/>37 of 37 calls clean"])
+    OK --> FREE(["<b>0 bytes.</b><br/>54 of 54 calls clean"])
 
     RS --> AMP["Sends a <b>window</b>, not a diff<br/>562 B edit → 8,156 B<br/><b>14.5×</b>"]
-    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes sent twice<br/>3 of 11 events · <b>21.5%</b>"]
+    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes re-sent<br/>13 of 26 events · <b>34.4%</b>"]
 
     AMP --> B
     DUP --> B
@@ -97,9 +97,10 @@ The control is clean:
 
 | | count |
 |---|---:|
-| `Edit` / `Write` calls | **37** |
+| `Edit` / `Write` calls | **54** |
 | re-injections that followed one | **0** |
-| re-injections that followed a shell-mediated change | **11** |
+| re-injections of files already in context | **26** |
+| bytes re-injected | **114,931** (~32k tokens) |
 
 After an `Edit` the harness reports *"file state is current in your context"* —
 it made the change, so it knows. After a shell command it doesn't, so it
@@ -109,13 +110,15 @@ of how much they look like bugs:
 1. **The resync is a window, not a diff.** A 562-byte edit to this README cost
    **8,156 bytes** of context — 14.5×. Both versions are known to the harness;
    a diff would carry the same information.
-2. **Identical content was re-sent.** Three of eleven re-injections were
-   byte-identical repeats (same MD5), delivered on the first turn after an idle
-   gap for files that hadn't changed. 8,895 bytes — **21.5% of all re-injected
-   bytes** — was content the agent already had verbatim.
-3. **A read-only operation appears to trigger it.** Four re-injections follow
-   `SendUserFile`, which modifies nothing — consistent with a delivery queue
-   that isn't cleared when it flushes.
+2. **Identical content was re-sent, repeatedly.** Thirteen of twenty-six
+   re-injections were byte-identical repeats (same MD5) of files that hadn't
+   changed between deliveries. 39,573 bytes — **34.4% of all re-injected
+   bytes** — was content the agent already had verbatim. One 665-byte file was
+   delivered four separate times.
+3. **A read-only operation is the largest trigger.** Fifteen of the twenty-eight
+   events follow `SendUserFile`, which modifies nothing at all. A tool that
+   cannot dirty a file should never cause a resync — but it can mark a turn
+   boundary at which a pending queue flushes.
 
 Reproduce on your own session:
 

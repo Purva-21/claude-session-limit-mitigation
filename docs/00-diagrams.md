@@ -18,10 +18,10 @@ flowchart TD
     C -->|"<b>Edit / Write</b><br/>harness made the change,<br/>so it knows the diff"| OK["No re-sync.<br/><i>'file state is current<br/>in your context'</i>"]
     C -->|"<b>Bash · script · build step</b><br/>harness sees bytes that no longer<br/>match, and cannot attribute why"| RS["Re-sync:<br/>send the file back"]
 
-    OK --> FREE(["<b>0 bytes.</b><br/>37 of 37 calls clean"])
+    OK --> FREE(["<b>0 bytes.</b><br/>54 of 54 calls clean"])
 
     RS --> AMP["Sends a <b>window</b>, not a diff<br/>562 B edit → 8,156 B<br/><b>14.5×</b>"]
-    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes sent twice<br/>3 of 11 events · <b>21.5%</b>"]
+    RS -.->|"delivery queue not cleared<br/>on flush <i>(inferred)</i>"| DUP["Same bytes re-sent<br/>13 of 26 events · <b>34.4%</b>"]
 
     AMP --> B
     DUP --> B
@@ -54,22 +54,27 @@ harness already knows what changed.
 
 ---
 
-## 1b. Anatomy of the 13 re-injections
+## 1b. Anatomy of the 28 re-injections
 
-Where the 57,631 re-injected bytes came from, by what preceded them.
+Where the 114,931 re-injected bytes came from, by what preceded them.
 
 ```mermaid
 pie showData
     title Re-injected bytes by trigger
-    "Bash / script-mediated edits" : 30247
+    "Bash / script-mediated edits" : 49796
+    "SendUserFile — a read-only op" : 48809
     "Initial reads (legitimate)" : 16326
-    "SendUserFile — a read-only op" : 11058
 ```
 
-Two of the thirteen were genuine first reads. The other eleven were re-syncs of
-files already in context — and **not one** of them followed an `Edit` or
-`Write`. The `SendUserFile` slice is the oddest: it modifies nothing, which is
-what points at a delayed queue flush rather than a fresh detection.
+Two of the twenty-eight were genuine first reads. The other twenty-six were
+re-syncs of files already in context — and **not one** followed an `Edit` or
+`Write`.
+
+The `SendUserFile` slice is the damning one. It modifies nothing; it cannot
+dirty a file. Yet it is the largest single trigger by count. That is not
+detection, it is a pending queue flushing at a turn boundary — and since 34.4%
+of all re-injected bytes were byte-identical repeats, the queue evidently is
+not emptied by a successful flush.
 
 ---
 
