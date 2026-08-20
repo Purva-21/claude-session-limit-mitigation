@@ -208,6 +208,7 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 |---|---|
 | [`docs/00-diagrams.md`](docs/00-diagrams.md) | **Five diagrams** — the problem, its cost, rebuild vs patch, the fix, the shape of a long task |
 | [`docs/07-the-actual-bug.md`](docs/07-the-actual-bug.md) | **The forensics** — what triggers re-injection, measured from the transcript |
+| [`docs/08-vendor-report.md`](docs/08-vendor-report.md) | Paste-ready bug report, with an explicit list of what it does *not* claim |
 | [`docs/01-observed-behaviour.md`](docs/01-observed-behaviour.md) | What actually happened, with numbers and timestamps |
 | [`docs/02-root-cause.md`](docs/02-root-cause.md) | Mechanism — observation vs. inference, kept separate |
 | [`docs/03-mitigations.md`](docs/03-mitigations.md) | The nine changes, ranked by measured effect |
