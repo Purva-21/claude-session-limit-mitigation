@@ -161,10 +161,12 @@ script cannot tell your deliverable from a stale build.
 If you want one sentence instead of a page, use
 [`prompts/one-liner.txt`](prompts/one-liner.txt):
 
-> Work in small diffs: never regenerate a file over 20KB — write a patch script
-> that edits the specific parts and run it. Keep generated artifacts out of the
-> working directory. Batch all checks into one command. Before you tell me a
-> report is wrong, diff the delivered file against your local copy.
+> Edit files with the Edit tool, never with shell scripts or heredocs — a
+> shell-mediated change to a file you've already read forces the whole file back
+> into context. Don't read large files you can change by script instead. Never
+> regenerate a file over 20KB. Keep generated artifacts out of the working
+> directory. Batch all checks into one command. Before you tell me a report is
+> wrong, diff the delivered file against your local copy.
 
 **Step 3 — for a project you'll return to,** commit
 [`examples/AGENTS.md.sample`](examples/AGENTS.md.sample) as `AGENTS.md` at the
