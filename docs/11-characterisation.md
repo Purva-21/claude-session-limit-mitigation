@@ -74,11 +74,21 @@ being drained at a turn boundary, and those tools merely mark boundaries.
 4. Continue the session doing unrelated work in a different directory.
    Never touch F again.
    -> F is re-sent, byte-identical, on every flush, indefinitely.
-5. Now edit F once with the harness's Edit tool.
+5. Modify F AGAIN by shell, in a different part of the file.
+   -> the payload does not move to the new region; it expands to cover both,
+      and stays larger for the rest of the session.
+6. Now edit F once with the harness's Edit tool.
    -> F stops being re-sent.
 ```
 
-Step 5 is both the diagnostic and the workaround.
+Steps 4 and 5 demonstrate the two dimensions separately — membership that never
+sheds files, and entries that never shed regions. Step 6 is both the diagnostic
+and the workaround.
+
+Keep this section even though the probe above already establishes the behaviour:
+the probe is evidence from one session that a maintainer cannot re-run, whereas
+these six steps are something they can execute in five minutes on their own
+machine. A defect report needs both.
 
 ## Practical workaround, today
 
