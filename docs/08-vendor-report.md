@@ -44,12 +44,25 @@ where re-injections appear as `edited_text_file` attachments.
 
 | | |
 |---|---:|
-| `Edit` / `Write` / `NotebookEdit` calls | 54 |
+| `Edit` / `Write` / `NotebookEdit` calls | 82 |
 | re-injections following one | **0** |
-| `Bash` calls | 46 |
-| re-syncs of files already in context | 26 |
-| total re-injected | 114,931 B (~32,000 tokens) |
-| byte-identical duplicates | 13 events, 39,573 B (34.4%) |
+| `Bash` calls | 103 |
+| re-syncs of files already in context | 73 |
+| total re-injected | 295,044 B (~82,000 tokens) |
+| byte-identical duplicates | **57 events, 195,663 B (66.3%)** |
+| worst single case | a 665-byte file delivered **15 times** |
+
+Trigger breakdown for the 75 events: `SendUserFile` 43, `Bash` 16, `WebFetch`
+10, `AskUserQuestion` 4, initial reads 2. **`WebFetch` and `AskUserQuestion`
+cannot touch the filesystem**, and neither can `SendUserFile` — so 57 of 75
+events cannot be change detection. They are a queue flushing at turn
+boundaries.
+
+The four most-duplicated files had not been edited for hours; the session had
+moved to unrelated work in a different directory. They were re-sent unchanged
+anyway. The duplicate share grew from 21.5% → 34.4% → 66.3% across three
+measurements of the same session, which indicates the pending set accumulates
+and is never emptied.
 
 Fifty-four in-context edits produced zero re-injections; every re-sync followed
 a shell-mediated change or a re-flush of one. The split is clean and held as the

@@ -29,12 +29,12 @@ Across the transcript, re-measured at the end of the session:
 
 | | count |
 |---|---:|
-| `Edit` / `Write` / `NotebookEdit` calls | **54** |
-| `Bash` calls | 46 |
-| File re-injection events | 28 |
+| `Edit` / `Write` / `NotebookEdit` calls | **82** |
+| `Bash` calls | 103 |
+| File re-injection events | 75 |
 | Re-injections attributable to `Edit`/`Write` | **0** |
 
-Fifty-four in-context edits, zero re-injections. Every single re-injection
+Eighty-two in-context edits, zero re-injections. Every single re-injection
 followed a shell-mediated change or a queue re-flush of one. This is not a
 subtle correlation — it is a clean split, and it held as the sample grew.
 
@@ -59,15 +59,22 @@ by **re-sending the file**.
 
 ```
 FILE RE-INJECTIONS
-  events                  : 28
-  bytes                   : 114,931  (~31,925 tokens)
-  duplicated events       : 13  (39,573 B of identical content re-sent)
+  events                  : 75
+  bytes                   : 295,044  (~81,956 tokens)
+  duplicated events       : 57  (195,663 B of identical content re-sent, 66.3%)
 
 BY TRIGGERING TOOL
-  Bash                     n=11      49,796 B
-  SendUserFile             n=15      48,809 B
-  (initial reads)          n=2       16,326 B
+  SendUserFile             n=43     <- modifies nothing
+  Bash                     n=16
+  WebFetch                 n=10     <- does not touch the filesystem at all
+  AskUserQuestion          n=4      <- does not touch the filesystem at all
+  (initial reads)          n=2
 ```
+
+**`WebFetch` and `AskUserQuestion` cannot touch the filesystem.** Neither can
+`SendUserFile`. Together they account for 57 of the 75 events. Whatever is
+emitting these is not detecting a file change — it is flushing a queue at a turn
+boundary.
 
 Twenty-six of the twenty-eight were re-syncs of files already in context. Two
 were genuine first reads.
@@ -108,14 +115,24 @@ This one looks like a straightforward bug rather than a design cost.
 
 ```
 DUPLICATE CHECK (same file + identical content hash re-sent)
-  mid-session.md            sent 4 times
-  README.md                 sent 4 times
-  05-checklist.md           sent 3 times
-  04-reproduction.md        sent 3 times
-  01-observed-behaviour.md  sent 3 times
-  00-diagrams.md            sent 2 times
-  duplicate events: 13 of 26   (39,573 B, ~11,000 tokens)
+  mid-session.md            sent 15 times     <- a 665-byte file
+  05-checklist.md           sent 14 times
+  04-reproduction.md        sent 14 times
+  01-observed-behaviour.md  sent 14 times
+  README.md                 sent  4 times
+  00-diagrams.md            sent  2 times
+  duplicate events: 57 of 73   (195,663 B, ~54,000 tokens)
 ```
+
+**None of those four files had been edited for hours** when the later
+deliveries occurred. The session had moved on to unrelated work in a different
+directory. They were re-sent anyway, unchanged, turn after turn — a 665-byte
+file fifteen times.
+
+This is the finding that grew most between the first measurement and the last.
+It began as 3 duplicates over one idle gap, which looked like an artefact. It
+is not an artefact. It is an unbounded re-flush of a set that is never emptied,
+and it accounts for **two thirds of every re-injected byte**.
 
 **34.4% of every re-injected byte was content the agent had already received
 verbatim.** Not a rounding error — a third of the mechanism's entire cost is
