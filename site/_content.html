@@ -162,6 +162,35 @@
   .dual span.mono{font-size:1rem;font-weight:600}
   .verdict{font-size:.87rem;color:var(--muted);margin:16px 0 0;line-height:1.5;min-height:3em}
   .verdict.good{color:var(--ok)}
+
+  /* ---- stack figure: replay control + live flush readout ---- */
+  .stackfig{position:relative}
+  .replay{position:absolute;top:22px;right:22px;font-family:"Bricolage Grotesque",sans-serif;
+    font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    padding:6px 11px;border:1px solid var(--edge);background:var(--panel);color:var(--muted);
+    cursor:pointer;z-index:2}
+  .replay:hover{color:var(--ink);border-color:var(--faint)}
+  .replay:focus-visible{outline:2px solid var(--system);outline-offset:2px}
+  .flushread{font-family:"JetBrains Mono",monospace}
+  .slab{transform-box:fill-box;transform-origin:50% 50%}
+  @media (prefers-reduced-motion:no-preference){
+    .stackviz.play .slab{animation:slabdrop .62s cubic-bezier(.22,.8,.24,1) both}
+    .stackviz.play #slab4{animation-delay:.05s}
+    .stackviz.play #slab3{animation-delay:.5s}
+    .stackviz.play #slab2{animation-delay:.95s}
+    .stackviz.play #slab1{animation-delay:1.4s}
+    @keyframes slabdrop{from{opacity:0;transform:translateY(-42px)}to{opacity:1;transform:translateY(0)}}
+
+    .stackviz.play #flushpulse{animation:flushpulse 2.3s ease-in-out 2s infinite}
+    @keyframes flushpulse{0%,72%,100%{opacity:.5}82%{opacity:1}92%{opacity:.5}}
+
+    .stackviz.play #drainmark{animation:drainfail 2.3s ease-in 2s infinite}
+    @keyframes drainfail{0%{opacity:0;transform:translateX(0)}10%{opacity:1;transform:translateX(0)}
+      55%{opacity:0;transform:translateX(-96px)}100%{opacity:0;transform:translateX(-96px)}}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .replay{display:none}
+  }
 </style>
 
 <button class="tt" id="tt" type="button">theme</button>
@@ -266,8 +295,9 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
   anything in it has changed since last time.</p>
 </div>
 
-<figure class="scroll">
-<svg viewBox="0 0 900 420" role="img" aria-label="Isometric view of the pending set as a growing stack of file slabs. Four slabs accumulate and are never removed; each flush emits all of them at once.">
+<figure class="scroll stackfig">
+<button class="replay" id="stackReplay" type="button">Replay</button>
+<svg viewBox="0 0 900 420" role="img" class="stackviz" id="stackviz" aria-label="Isometric view of the pending set as a growing stack of file slabs. Four slabs accumulate and are never removed; each flush emits all of them at once, while the drain that should run on a successful flush never fires.">
   <defs>
     <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="var(--accrue)"/>
@@ -281,7 +311,7 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
   <polygon points="300,340 460,432 620,340 460,248" fill="var(--grid)" fill-opacity=".55" stroke="var(--edge)" stroke-width="1"/>
 
   <!-- slab 4 (bottom, oldest) -->
-  <g>
+  <g id="slab4" class="slab">
     <polygon points="330,318 460,393 590,318 460,243" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
     <polygon points="330,318 460,393 460,411 330,336" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
     <polygon points="590,318 460,393 460,411 590,336" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
@@ -289,7 +319,7 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
     <text x="620" y="368" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">entered turn 54 · sent 15×</text>
   </g>
   <!-- slab 3 -->
-  <g>
+  <g id="slab3" class="slab">
     <polygon points="330,262 460,337 590,262 460,187" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
     <polygon points="330,262 460,337 460,355 330,280" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
     <polygon points="590,262 460,337 460,355 590,280" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
@@ -297,7 +327,7 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
     <text x="620" y="312" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">665 B · sent 15×</text>
   </g>
   <!-- slab 2 -->
-  <g>
+  <g id="slab2" class="slab">
     <polygon points="330,206 460,281 590,206 460,131" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
     <polygon points="330,206 460,281 460,299 330,224" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
     <polygon points="590,206 460,281 460,299 590,224" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
@@ -305,7 +335,7 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
     <text x="620" y="256" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">entered turn 120 · 14×</text>
   </g>
   <!-- slab 1 (top, newest) -->
-  <g>
+  <g id="slab1" class="slab">
     <polygon points="330,150 460,225 590,150 460,75" fill="var(--accrue)" fill-opacity=".20" stroke="var(--accrue)" stroke-width="1.4"/>
     <polygon points="330,150 460,225 460,243 330,168" fill="var(--accrue)" fill-opacity=".34" stroke="var(--accrue)" stroke-width="1.1"/>
     <polygon points="590,150 460,225 460,243 590,168" fill="var(--accrue)" fill-opacity=".26" stroke="var(--accrue)" stroke-width="1.1"/>
@@ -319,18 +349,24 @@ resynchronisation — and that queue entry is what never goes away.</figcaption>
   <text x="20" y="50" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">adds a slab</text>
 
   <!-- outgoing (absent) -->
-  <line x1="300" y1="392" x2="150" y2="392" stroke="var(--faint)" stroke-width="1.4" stroke-dasharray="5 5"/>
-  <text x="20" y="382" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--faint)">drain on flush</text>
-  <text x="20" y="398" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--stuck)">does not happen</text>
+  <g id="drainflow">
+    <line x1="300" y1="392" x2="150" y2="392" stroke="var(--faint)" stroke-width="1.4" stroke-dasharray="5 5"/>
+    <circle id="drainmark" cx="292" cy="392" r="4.5" fill="var(--stuck)" opacity="0"/>
+    <text x="20" y="382" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--faint)">drain on flush</text>
+    <text x="20" y="398" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--stuck)">does not happen</text>
+  </g>
 
   <!-- flush emission -->
-  <line x1="460" y1="60" x2="460" y2="14" stroke="var(--stuck)" stroke-width="1.7" marker-end="url(#ar3)"/>
-  <text x="474" y="24" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">every flush emits the whole stack</text>
+  <g id="flushpulse">
+    <line x1="460" y1="60" x2="460" y2="14" stroke="var(--stuck)" stroke-width="1.7" marker-end="url(#ar3)"/>
+    <text x="474" y="24" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">every flush emits the whole stack</text>
+  </g>
 </svg>
 <figcaption>The pending set, drawn as a stack. Shell-mediated writes add slabs from above; the
-drain that should run on a successful flush does not exist. Flush size therefore plateaus at the
-size of the stuck set — here, four files, emitted together on every one of the last fourteen
-flushes.</figcaption>
+drain that should run on a successful flush does not exist — the marker on the dashed line
+attempts it and fades before reaching. Flush size therefore plateaus at the size of the stuck
+set — here, four files, emitted together on every one of the last fourteen flushes
+(<span class="flushread" id="flushCount">flush 1 of 14</span>, 14,190&nbsp;B each time).</figcaption>
 </figure>
 </section>
 
@@ -737,5 +773,29 @@ refreshed. The marker appeared. The content is not stale.</figcaption>
   });
   els.fix.addEventListener('change',function(){ stop(); reset(); });
   reset();
+
+  /* ---- stack figure: replay + live flush counter ---- */
+  var stackviz=document.getElementById('stackviz');
+  var stackBtn=document.getElementById('stackReplay');
+  var flushCount=document.getElementById('flushCount');
+  var motionOK=matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  var flushTimer=null, flushN=0;
+
+  function startFlushCounter(){
+    if(flushTimer) clearInterval(flushTimer);
+    flushN=1; flushCount.textContent='flush '+flushN+' of 14';
+    flushTimer=setInterval(function(){
+      flushN = flushN>=14 ? 1 : flushN+1;
+      flushCount.textContent='flush '+flushN+' of 14';
+    }, 2300);
+  }
+  function playStack(){
+    stackviz.classList.remove('play');
+    void stackviz.offsetWidth; /* restart CSS animation */
+    stackviz.classList.add('play');
+    if(motionOK) startFlushCounter();
+  }
+  stackBtn.addEventListener('click', playStack);
+  if(motionOK) playStack(); else flushCount.textContent='flush 14 of 14';
 })();
 </script>
