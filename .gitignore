@@ -6,3 +6,6 @@ venv/
 *.stripped.ipynb
 artifacts/
 .cache/
+
+# probe apparatus, not documentation
+docs/probe_c.md

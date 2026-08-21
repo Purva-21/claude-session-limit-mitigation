@@ -182,13 +182,29 @@ def human(a: dict) -> str:
     p("  duplicated events       : %d  (%d B of identical content re-sent)"
       % (a["duplicate_events"], a["duplicate_bytes"]))
 
+    # Not every file payload is a re-flush. `edited_text_file` is the pending-set
+    # flush -- a window of a file the agent never asked for again. `file` and
+    # `read_file` are ordinary tool results, and after a compaction they also
+    # include reads carried across the boundary. Counting them together
+    # overstates the defect, so split them out.
+    flushes = [r for r in a["reinjections"] if r["kind"] == "edited_text_file"]
+    others = [r for r in a["reinjections"] if r["kind"] != "edited_text_file"]
+    p("  of which pending-set flushes (edited_text_file) : %d  (%d B)"
+      % (len(flushes), sum(r["bytes"] for r in flushes)))
+    p("  ordinary tool results / carried reads           : %d  (%d B)"
+      % (len(others), sum(r["bytes"] for r in others)))
+    if not flushes and others:
+        p("  -> no pending-set flush in this transcript; the file payloads")
+        p("     above are reads, not re-syncs. Nothing here evidences the defect.")
+
     if a["reinjections"]:
-        p("\n  %-40s %8s %7s  %s" % ("file", "bytes", "lines", "after tool"))
-        p("  " + "-" * 70)
+        p("\n  %-34s %-18s %8s %7s  %s"
+          % ("file", "kind", "bytes", "lines", "after tool"))
+        p("  " + "-" * 88)
         for r in a["reinjections"]:
-            p("  %-40s %8d %7d  %s"
-              % (os.path.basename(r["file"])[:40], r["bytes"], r["lines"],
-                 ",".join(r["trigger"])))
+            p("  %-34s %-18s %8d %7d  %s"
+              % (os.path.basename(r["file"])[:34], r["kind"][:18],
+                 r["bytes"], r["lines"], ",".join(r["trigger"])))
 
     p("\nBY TRIGGERING TOOL")
     for k, n in sorted(a["by_trigger"].items(), key=lambda kv: -kv[1]):

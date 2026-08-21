@@ -115,6 +115,39 @@ ARM B   control          5236 B   lines 1-120   unchanged throughout
    tool results. This was diagnosable only by parsing the transcript by hand;
    a breakdown in the UI would have surfaced it in minutes rather than days.
 
+## Open: what happens at a compaction boundary
+
+Reported here because it bears directly on severity, and because it is the one
+thing a maintainer can check instantly against their own implementation.
+
+When this session compacted, the boundary carried five named files: three as
+whole-file `Read` results (`startLine = 1`, `numLines == totalLines`) and two as
+name-only references. **No `edited_text_file` attachment crossed the boundary**,
+and three of the four files then stuck in the set do not appear in the rewritten
+transcript at all.
+
+If that means compaction clears the pending set, the unbounded growth described
+above is in fact bounded by the compaction interval, and the severity below
+should be read down accordingly.
+
+A control-armed probe testing exactly this is described in
+[`11-characterisation.md`](11-characterisation.md#the-post-compaction-probe):
+three files queued by the same `Read` → shell-edit sequence, in three directory
+scopes, against the three still-stuck files held as controls. After 70 turns —
+including 36 `Bash`, 2 `SendUserFile` and 1 `WebFetch`, the tools behind 69 of
+the 75 events above — **nothing has flushed at all**. Against the measured 7.1%
+per-turn base rate that is p ≈ 0.06 on the conservative reading: right at the
+edge, and on the wrong side of it.
+
+That p-value keeps falling for as long as the session runs quiet, which is
+precisely why it is quoted frozen at turn 70 rather than at whichever turn it
+first dipped under 0.05. Settling it needs a fresh session with the turn budget
+fixed in advance.
+
+**So this is an observation, not a finding.** It is reported because whoever
+owns the code can settle it from the source in a minute, and because if it is
+true it changes the severity assessment more than any of the fixes above.
+
 ## Severity
 
 Low per event, meaningful in aggregate, and invisible to the user. Roughly a

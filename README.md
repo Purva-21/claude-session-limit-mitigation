@@ -1,6 +1,10 @@
 # Surviving session limits in long agentic coding sessions
 
-![Before and after: 277,530 tokens reduced to 40,314](docs/img/overview.svg)
+![The simulator: files enter a pending set and never leave, so every flush re-sends all of them. Toggling the content-hash fix drops the same session from 295,044 bytes to 37,667.](docs/img/simulator.gif)
+
+<p align="center"><em>Same session, replayed twice. Without the fix: 295,044 bytes re-injected,
+66% of it byte-identical repeats. With one content-hash check: 37,667 bytes, zero duplicates.</em><br>
+<strong><a href="https://purva-21.github.io/claude-session-limit-mitigation/">Open the interactive version →</a></strong></p>
 
 A field report and a toolkit. During a multi-day task (building and debugging a
 scientific-computing benchmark notebook) a Claude Opus 5 Cowork session
@@ -229,6 +233,8 @@ it drops into a Makefile, a pre-commit hook or CI without extra glue.
 | `.github/workflows/context-budget.yml` | CI job that fails when the repo gets too expensive |
 
 ## Measured result
+
+![Before and after: 277,530 tokens reduced to 40,314](docs/img/overview.svg)
 
 Applying the mitigations in stages to that session's actual directory, with the
 auditor re-run after each stage:

@@ -574,6 +574,48 @@ refreshed. The marker appeared. The content is not stale.</figcaption>
   <p>So a file edited by shell in ten different places would carry all ten regions on every
   subsequent flush, for the rest of the session. The leak has two dimensions, and only one of
   them has a known exit.</p>
+
+  <h3>One more exit, maybe: the session compacted</h3>
+
+  <p>Everything above is measured. This last part is not, and it is marked as such because the
+  distinction is the whole point of the exercise.</p>
+
+  <p>The session that produced these numbers eventually ran long enough to compact — the harness
+  summarised the conversation and rewrote the transcript in place, 296 turns down to 48 lines.
+  The boundary carried five named files across: three whole-file reads
+  (<span class="mono">startLine&nbsp;=&nbsp;1</span>, <span class="mono">numLines&nbsp;==&nbsp;totalLines</span>)
+  and two name-only references. <strong>No flush payload crossed it</strong>, and three of the
+  four files then stuck in the set do not appear in the rewritten transcript at all.</p>
+
+  <p>If compaction really does empty the set, the unbounded growth this page is about is in fact
+  bounded by the compaction interval — which would make the defect meaningfully less severe than
+  the rest of this page implies. So it was tested: three files queued by the same
+  <span class="mono">Read → sed -i</span> sequence, in three directory scopes, with the three
+  still-stuck files held untouched as controls.</p>
+
+  <table>
+    <thead><tr><th>reading</th><th>turns queued, no flush</th><th>probability by chance</th></tr></thead>
+    <tbody>
+      <tr><td>conservative</td><td>39</td><td>0.057 — 1 in 18</td></tr>
+      <tr><td>generous</td><td>56</td><td>0.016 — 1 in 62</td></tr>
+    </tbody>
+  </table>
+
+  <p>Against the measured base rate of one flush per fourteen turns, the conservative reading
+  sits right at the edge of the bar and on the wrong side of it. <strong>That makes it a trend,
+  not a finding</strong>, and it is written down here as a trend so that nobody quotes it as one.</p>
+
+  <p>It is also worth being explicit about why waiting will not fix that. Every further quiet turn
+  multiplies the probability by <span class="mono">0.929</span>, so the number falls on its own,
+  forever, whether or not compaction does anything. Reporting it from whichever moment it happened
+  to dip below <span class="mono">0.05</span> would be optional stopping wearing a lab coat. The
+  figure above is frozen at turn 70 and stays frozen. Settling it properly needs a fresh session
+  with the turn budget fixed <em>before</em> the probe starts — which is the one experiment on
+  this page that has not been run.</p>
+
+  <p>Whoever owns the code can answer it from the source in about a minute. The reasoning, the
+  arithmetic and the two ways the probe could still be measuring nothing are in
+  <a href="https://github.com/Purva-21/claude-session-limit-mitigation/blob/main/docs/11-characterisation.md#the-post-compaction-probe">doc&nbsp;11</a>.</p>
 </div>
 </section>
 

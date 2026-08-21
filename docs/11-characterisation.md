@@ -160,6 +160,206 @@ The 17 identical deliveries preceding the change are also the cleanest available
 proof of the duplicate behaviour itself: the payload was provably constant across
 17 flushes while the file sat untouched.
 
+## What a compaction boundary carries
+
+This session compacted. That is worth a section of its own — partly for what
+the boundary carried, partly for what it destroyed on the way past, and partly
+because it is the first event other than an `Edit`/`Write` that *might* empty
+the set. Whether it does is the subject of the next section; this one is only
+about what can be read directly off the rewritten transcript.
+
+The rewritten transcript opens with the summary record, followed by eight
+attachments. Five of them name a file:
+
+| file | attachment kind | payload |
+|---|---|---:|
+| `docs/11-characterisation.md` | `file` | lines 1–191, whole file, 8,838 B |
+| `docs/08-vendor-report.md` | `file` | lines 1–162, whole file, 7,505 B |
+| `prompts/mid-session.md` | `file` | lines 1–100, whole file, 2,832 B |
+| `README.md` | `compact_file_reference` | name only — "too large to include" |
+| `hs/leak.html` | `compact_file_reference` | name only |
+
+Every one of the three `file` payloads has `startLine = 1` and
+`numLines == totalLines`. They are whole-file `Read` results preserved across
+the boundary. A flush payload does not look like that: it is an
+`edited_text_file` carrying a *window* — `startLine = 79`, part of a file.
+**The rewritten transcript contains no `edited_text_file` attachment at all.**
+
+Three of the four stuck files are simply absent.
+`01-observed-behaviour.md`, `04-reproduction.md` and `05-checklist.md` appear in
+no post-compaction attachment. `mid-session.md` does appear — but as a
+2,832-byte whole file, not as the window it had been carrying as a set member
+(665 B over lines 79–99 for seventeen deliveries, then 977 B over lines 1–99
+once the probe enlarged it). Different attachment kind, different shape,
+different size. Its presence is explained by a `Read` in the continuation, not
+by membership.
+
+That is suggestive, not sufficient: an empty flush and a set with nothing left
+to flush look identical from outside. §The post-compaction probe separates them.
+
+## The post-compaction probe
+
+**Design.** Three treatment files, three controls.
+
+Each treatment is created fresh after the boundary, `Read` into context, then
+dirtied by `sed -i` — exactly the sequence that put the original six files into
+the set. The controls are `01-observed-behaviour.md`, `04-reproduction.md` and
+`05-checklist.md`: the three files still stuck when the session compacted,
+deliberately untouched by `Read`, `Edit` or shell. Whatever happens to them is
+the answer.
+
+The first version of this probe had a single treatment in `/tmp`, on the
+reasoning that somewhere isolated could not be contaminated by ordinary edit
+traffic. That reasoning was wrong, and in the direction that matters: every
+file ever observed in the set lived under `/root`, so if tracking is scoped by
+directory, a `/tmp` file could never join the set and its silence would mean
+nothing. **A negative result from an arm that cannot produce a positive is not
+a result.** Two more arms were added to close it:
+
+| arm | path | controls for |
+|---|---|---|
+| A | `/tmp/flushprobe/probe_a.md` | nothing — outside every tracked tree |
+| B | `/root/probe_b.md` | same tree as the stuck files, outside the repo |
+| C | `docs/probe_c.md` | the exact directory that held four of the six |
+
+If C is silent, directory scope is not the explanation.
+
+**Discriminator.** The next `edited_text_file` flush after the shell edits.
+
+| what the flush carries | conclusion |
+|---|---|
+| a treatment only | compaction cleared the set; the mechanism still works |
+| a treatment + any control | membership survived the boundary |
+| nothing, indefinitely | the set is gone *and* not refillable — the strongest claim, and the one needing the most patience |
+
+The third row is why the probe needs treatment arms at all. Without a file
+known to be freshly queued, silence proves nothing: a set that was cleared and a
+set that simply has not flushed yet look identical from outside.
+
+**Positive control.** Before reading anything into silence, check the machinery
+is still switched on. Every `Edit` this session still returns *"file state is
+current in your context — no need to Read it back"* — the same instrumentation
+string quoted in [`08`](08-vendor-report.md) as evidence that the harness tracks
+its own writes. The file-tracking layer is alive after the boundary. Whatever is
+not happening, it is not that the subsystem stopped running.
+
+**Result, snapshot at post-compaction turn 70.** The session was still running
+when this was written, so these counts are a floor; re-run the census below to
+refresh them.
+
+| | pre-compaction | post-compaction |
+|---|---:|---:|
+| turns | 296 | 70 |
+| turns since a treatment was queued | — | 56 (arm A) / 39 (arms B, C) |
+| `Bash` calls | 103 | 36 |
+| `SendUserFile` calls | — | 2 |
+| `WebFetch` calls | — | 1 |
+| **`edited_text_file` events** | **75** | **0** |
+
+The three tools behind 69 of the 75 pre-compaction events — `SendUserFile` 43,
+`Bash` 16, `WebFetch` 10 — have all been exercised since. Three files have been
+queued by the exact `Read` → `sed -i` sequence that queued the originals, in
+three different directory scopes. Nothing has flushed.
+
+```bash
+python3 - <<'EOF'
+import json, collections
+p = "PATH/TO/transcript.jsonl"
+turns = 0; flushes = 0; tools = collections.Counter()
+for line in open(p):
+    line = line.strip()
+    if not line: continue
+    try: r = json.loads(line)
+    except ValueError: continue
+    if r.get("type") == "user": turns += 1
+    if r.get("type") == "assistant":
+        for c in (r.get("message") or {}).get("content") or []:
+            if isinstance(c, dict) and c.get("type") == "tool_use":
+                tools[c.get("name")] += 1
+    if r.get("type") == "attachment" and (r.get("attachment") or {}).get("type") == "edited_text_file":
+        flushes += 1
+base = 1 - 21/296                      # measured pre-compaction flush rate
+print(turns, "turns,", flushes, "flushes,", dict(tools))
+print("P(0 by chance) = %.4f" % base**turns)
+EOF
+```
+
+**Verdict: a trend, not a finding.** Pre-compaction, 21 of 296 turn boundaries
+carried a flush — a base rate of **7.1%**. Zero post-compaction boundaries have.
+How unlikely that is depends on which arm you are willing to assume actually
+joined the set, and the two answers are far apart:
+
+| assumption | arms counted | turns queued | P(0 flushes by chance) |
+|---|---|---:|---:|
+| only `/root` is tracked | B, C | 39 | **0.057** — 1 in 18 |
+| `/tmp` is tracked too | A, B, C | 56 | **0.016** — 1 in 62 |
+
+**Report the top row.** Arm A is the one whose membership is least defensible —
+it sits outside every tree in which a tracked file has ever been observed — so
+leaning on it to claim significance would be assuming the conclusion. On the
+conservative reading this is one chance in eighteen: right at the edge, and on
+the wrong side of it.
+
+Consistent with compaction having cleared the set. Not yet evidence of it.
+
+### Why this probe can never do better than "suggestive"
+
+Every further quiet turn multiplies that p-value by 0.929. It was 0.20 an hour
+ago; it was 0.057 at turn 70; it crossed 0.05 shortly after, and it will keep
+falling for as long as the session runs without flushing.
+
+**That is not a result arriving. That is optional stopping.** A p-value computed
+from a series the analyst is watching, with the stopping point chosen after
+seeing it, is not a p-value. If the rule is "keep looking until it drops below
+0.05" then it drops below 0.05 eventually with probability 1, whether or not
+compaction does anything at all. Quoting the number from the moment it happened
+to cross would be the single most misleading thing this repo could do, and it
+would be easy, and it would look rigorous.
+
+So the figure is frozen at turn 70 above and labelled as a snapshot, and the
+conclusion stays at "trend". The honest way to settle this is a **fresh session
+with the turn budget fixed in advance**: pick N before starting, run the probe
+for exactly N turns, report whatever it says. That is the sixth row of the table
+below, and it is the one experiment in this document that has not been run.
+
+The same caution applies to the pre-compaction numbers, and there it does not
+bite: those were counted from a completed transcript over a fixed window, not
+watched as they accrued.
+
+Two honest limits on top of that:
+
+- **The controls are currently uninformative.** `01-observed-behaviour.md`,
+  `04-reproduction.md` and `05-checklist.md` have not reappeared — but nothing
+  has, so their silence adds no information beyond the boundary observation.
+  They only become evidence once *some* flush occurs.
+- **Arm membership is unverifiable from inside.** There is no way to confirm a
+  probe file entered the set except by watching it leave. If the queueing
+  behaviour itself changed after compaction, all three arms are empty and the
+  whole probe is measuring nothing. This cannot be ruled out from the client
+  side; it can be answered from the source in a minute.
+
+The probe stays running. If a flush fires later in this session, the row it
+lands on in the table above is the answer.
+
+## What compaction destroyed
+
+The turn-314 experiment — evict `mid-session.md` with `Edit`, then watch for its
+absence from the next flush — can no longer be settled. Compaction rewrote the
+transcript in place: 296 turns of records became 48 lines. No flush fired
+between the revert and the boundary, so the deliberate eviction was never
+observed, and the records that would have shown it are gone from disk.
+
+Two things follow.
+
+1. The eviction rule stands exactly where it was — six files, observational,
+   n = 1. The confirmation was **lost, not refuted**.
+2. **Copy the transcript before the session compacts.** A single
+   `cp ~/.claude/projects/<slug>/<id>.jsonl /tmp/` is the difference between
+   holding the evidence and describing it from memory. Every number in this
+   repo survives only because it was parsed into [`07`](07-the-actual-bug.md)
+   while the records still existed. This is the one operational lesson worth
+   taking from a defect report about a session that ran out of room.
+
 ## What still needs testing
 
 These cannot be settled from one transcript. Each is a controlled experiment:
@@ -171,7 +371,7 @@ These cannot be settled from one transcript. Each is a controlled experiment:
 | 3 | Is the set bounded? | dirty 10 files via shell; does the flush carry all 10? |
 | 4 | What makes a turn a flush turn? | only 21 of 296 flushed — log tool types per turn and correlate |
 | 5 | ~~Does the payload refresh?~~ | **Answered above.** It refreshes, but the old region is retained alongside the new one |
-| 6 | Does it survive compaction? | this session compacted early; check whether the set persisted across it |
+| 6 | Does it survive compaction? | **Trending no; p ≈ 0.06 conservatively at turn 70.** The boundary carried no flush payload and dropped three of four stuck files; 70 turns and three freshly-queued files later, nothing has flushed. Settling it needs a fresh session with the turn budget **fixed in advance** — see §Why this probe can never do better than "suggestive" |
 
 Question 5 has since been answered by direct experiment — see the section above.
 The payload is **not** stale, which keeps this an efficiency defect rather than a
