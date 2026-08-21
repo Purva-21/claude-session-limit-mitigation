@@ -84,6 +84,24 @@ python3 tools/transcript_forensics.py ~/.claude/projects/*/<session-id>.jsonl
 A tool-agnostic behavioural A/B (native edit vs shell edit vs a no-op `touch`)
 is in `prompts/replication-test.md`.
 
+## The leak has two dimensions (controlled probe)
+
+A file stuck in the set delivered a byte-identical 665-byte window covering
+lines 79–99 across **17 consecutive flushes**. A marker was then inserted at
+line 3 by a shell command; a second stuck file was held as an untouched control.
+
+```
+ARM A   deliveries 1-17   665 B   lines 79-99   marker absent
+        delivery     18   977 B   lines  1-99   marker PRESENT
+ARM B   control          5236 B   lines 1-120   unchanged throughout
+```
+
+- **The payload is not stale.** It refreshed on a real change. This is an
+  efficiency defect, not a correctness one.
+- **But dirty regions accumulate.** The window did not move to line 3 — it
+  expanded to cover both regions, and the entry grew from 665 B to 977 B
+  permanently. Files never leave the set; regions never leave a file's entry.
+
 ## Suggested fixes, cheapest first
 
 1. **Skip the resync when the content hash matches what was last delivered.**

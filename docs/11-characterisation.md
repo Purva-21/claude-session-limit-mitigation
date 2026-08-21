@@ -101,6 +101,55 @@ shell-mediated edits for files that were never read.
 4. **Evict on any confirmed-current read, not just a write** — a cheap
    secondary path out of the set.
 
+## Resolved: the payload is fresh, but the region set accumulates
+
+The open question — *is the flushed payload a stale snapshot?* — was settled by a
+controlled probe run inside the same session.
+
+**Method.** `prompts/mid-session.md` had been stuck for 17 consecutive flushes,
+delivering a byte-identical 665-byte window covering **lines 79–99** — the region
+touched by the shell edit that originally queued it. A marker string was then
+inserted at **line 3** by a shell command, deliberately far from that window. A
+second stuck file, `docs/04-reproduction.md`, was left untouched as a control.
+
+**Result.**
+
+```
+ARM A  prompts/mid-session.md
+  deliveries  1-17   hash f58064   665 B   lines 79-99   marker absent
+  delivery      18   hash 7c8b54   977 B   lines  1-99   marker PRESENT
+
+ARM B  docs/04-reproduction.md  (control)
+  every delivery     hash b58567  5236 B   lines 1-120   unchanged
+```
+
+**Two conclusions.**
+
+1. **It is not a stale snapshot.** The payload refreshed as soon as the file
+   genuinely changed, and the marker appeared. So the agent is not being handed
+   outdated content. **This is an efficiency defect, not a correctness one** —
+   the less alarming of the two possibilities, and worth stating plainly.
+
+2. **The dirty-region set accumulates within an entry.** The window did not move
+   to line 3. It expanded to cover **lines 1–99** — the new region *and* the
+   original one, together. The 665-byte payload became 977 bytes, and that larger
+   payload is what every future flush now carries.
+
+So the leak is two-dimensional:
+
+| dimension | what accumulates | what would clear it |
+|---|---|---|
+| set membership | files never leave | only an `Edit`/`Write` to that file |
+| entry payload | dirty regions never retire | nothing observed |
+
+Each shell-mediated edit to an already-stuck file permanently enlarges its
+per-flush cost. A file edited by shell ten times in different places would carry
+all ten regions on every subsequent flush, forever.
+
+The 17 identical deliveries preceding the change are also the cleanest available
+proof of the duplicate behaviour itself: the payload was provably constant across
+17 flushes while the file sat untouched.
+
 ## What still needs testing
 
 These cannot be settled from one transcript. Each is a controlled experiment:
@@ -111,15 +160,13 @@ These cannot be settled from one transcript. Each is a controlled experiment:
 | 2 | Is eviction really write-specific? | after step 3, `Read` F and continue — does it still flush? |
 | 3 | Is the set bounded? | dirty 10 files via shell; does the flush carry all 10? |
 | 4 | What makes a turn a flush turn? | only 21 of 296 flushed — log tool types per turn and correlate |
-| 5 | Does the payload refresh? | modify F again by shell after it is stuck — is the newer content sent, or the stale snapshot? |
+| 5 | ~~Does the payload refresh?~~ | **Answered above.** It refreshes, but the old region is retained alongside the new one |
 | 6 | Does it survive compaction? | this session compacted early; check whether the set persisted across it |
 
-Question 5 matters most for correctness rather than cost: if the flushed payload
-is a **stale snapshot**, the agent is being handed outdated content, which is a
-correctness bug and not merely an efficiency one. In this session every repeat
-was byte-identical to the first delivery, which is consistent with a snapshot
-taken at entry — but the files also never changed again, so the two hypotheses
-are not yet distinguishable.
+Question 5 has since been answered by direct experiment — see the section above.
+The payload is **not** stale, which keeps this an efficiency defect rather than a
+correctness one. The probe did however expose the second dimension of the leak:
+dirty regions accumulate within a file's entry and are never retired.
 
 ## Reproducing the analysis
 
