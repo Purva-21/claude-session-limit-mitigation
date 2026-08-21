@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Pending Set</title>
+<meta name="description" content="A resync queue in an agentic coding harness that never drains: where it comes from, how it grows, and the one action that clears it. Measured across 296 turns of a single session.">
+<meta property="og:title" content="The Pending Set">
+<meta property="og:description" content="A resync queue in an agentic coding harness that never drains: where it comes from, how it grows, and the one action that clears it. Measured across 296 turns of a single session.">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root{
+    --ground:#f4f2ee;
+    --panel:#ffffff;
+    --edge:#ddd8d0;
+    --ink:#1b1e28;
+    --muted:#5f6273;
+    --faint:#8b8ea0;
+    --system:#3d4fb8;      /* the harness path — behaves correctly */
+    --accrue:#9a7220;      /* brass: entering the set */
+    --stuck:#8f2f39;       /* garnet: never evicted */
+    --ok:#2f6b4f;
+    --grid:#e6e2da;
+    --shadow:rgba(27,30,40,.10);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#11131a;
+      --panel:#191c25;
+      --edge:#2b3040;
+      --ink:#e6e5e8;
+      --muted:#a2a6b8;
+      --faint:#71768c;
+      --system:#8b97e8;
+      --accrue:#d6a640;
+      --stuck:#e0707c;
+      --ok:#6fbf95;
+      --grid:#242938;
+      --shadow:rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#11131a; --panel:#191c25; --edge:#2b3040; --ink:#e6e5e8;
+    --muted:#a2a6b8; --faint:#71768c; --system:#8b97e8; --accrue:#d6a640;
+    --stuck:#e0707c; --ok:#6fbf95; --grid:#242938; --shadow:rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:"Source Serif 4",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+  .col{max-width:64ch;margin:0 auto}
+
+  h1,h2,h3,.lab{font-family:"Bricolage Grotesque",system-ui,sans-serif;text-wrap:balance}
+  h1{font-size:clamp(2.3rem,6vw,3.6rem);font-weight:800;line-height:1.02;letter-spacing:-.02em;margin:0 0 .4em}
+  h2{font-size:1.6rem;font-weight:700;letter-spacing:-.01em;margin:0 0 .5em}
+  h3{font-size:1.05rem;font-weight:600;margin:0 0 .35em}
+  p{margin:0 0 1.1em}
+  .lab{font-size:.72rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+  code,.mono,.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  code{font-size:.86em;background:var(--grid);padding:.1em .38em;border-radius:3px}
+
+  header{padding:88px 0 40px}
+  header .col{max-width:70ch}
+  .kicker{color:var(--stuck)}
+  .sub{font-size:1.16rem;color:var(--muted);margin-bottom:1.6em}
+
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+         background:var(--edge);border:1px solid var(--edge);margin:0 0 8px}
+  .stat{background:var(--panel);padding:16px 18px}
+  .stat .v{font-family:"JetBrains Mono",monospace;font-size:1.5rem;font-weight:600;
+           line-height:1.1;font-variant-numeric:tabular-nums;display:block}
+  .stat .k{font-family:"Bricolage Grotesque",sans-serif;font-size:.7rem;letter-spacing:.1em;
+           text-transform:uppercase;color:var(--faint);margin-top:6px;display:block}
+  .stat.bad .v{color:var(--stuck)} .stat.good .v{color:var(--ok)}
+  .cap{font-size:.85rem;color:var(--faint);margin:0 0 56px}
+
+  section{padding:36px 0}
+  figure{margin:34px 0;background:var(--panel);border:1px solid var(--edge);
+         padding:26px 22px 18px;box-shadow:0 1px 2px var(--shadow)}
+  figure svg{display:block;width:100%;max-width:100%;height:auto}
+  figcaption{font-size:.87rem;color:var(--muted);margin-top:14px;line-height:1.5;
+             border-top:1px solid var(--edge);padding-top:12px}
+  .scroll{overflow-x:auto}
+
+  .rule{height:1px;background:var(--edge);border:0;margin:0}
+
+  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:0 0 1.2em}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--edge)}
+  th{font-family:"Bricolage Grotesque",sans-serif;font-size:.7rem;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--faint);font-weight:600}
+  td.n{text-align:right;font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums}
+  tr.stuck td:first-child{color:var(--stuck);font-weight:600}
+  tr.ev td:first-child{color:var(--ok);font-weight:600}
+
+  .pill{display:inline-block;font-family:"Bricolage Grotesque",sans-serif;font-size:.68rem;
+        letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:99px;
+        border:1px solid currentColor;vertical-align:.12em}
+  .pill.s{color:var(--stuck)} .pill.o{color:var(--ok)}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  .steps li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:20px}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:1px;
+    font-family:"JetBrains Mono",monospace;font-size:.78rem;font-weight:600;
+    width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+    color:var(--panel);background:var(--ink)}
+  .steps li.hot::before{background:var(--stuck)}
+  .steps li.fix::before{background:var(--ok)}
+
+  .note{border-left:3px solid var(--accrue);padding:2px 0 2px 18px;color:var(--muted);
+        font-size:.95rem;margin:0 0 1.2em}
+  a{color:var(--system)}
+  @media (prefers-reduced-motion:no-preference){
+    .fade{animation:f .7s ease both}
+    @keyframes f{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  }
+
+  /* ---- theme toggle ---- */
+  .tt{position:fixed;top:14px;right:14px;z-index:9;font-family:"Bricolage Grotesque",sans-serif;
+      font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;padding:7px 12px;
+      background:var(--panel);color:var(--muted);border:1px solid var(--edge);cursor:pointer}
+  .tt:hover{color:var(--ink)}
+  .tt:focus-visible{outline:2px solid var(--system);outline-offset:2px}
+
+  /* ---- simulator ---- */
+  .sim{background:var(--panel);border:1px solid var(--edge);padding:22px;margin:30px 0;
+       box-shadow:0 1px 2px var(--shadow)}
+  .sim-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px}
+  .sim button{font-family:"Bricolage Grotesque",sans-serif;font-size:.78rem;font-weight:600;
+    letter-spacing:.05em;padding:9px 16px;border:1px solid var(--ink);background:var(--ink);
+    color:var(--panel);cursor:pointer}
+  .sim button:hover{opacity:.85}
+  .sim button:disabled{opacity:.35;cursor:default}
+  .sim button#reset{background:transparent;color:var(--muted);border-color:var(--edge)}
+  .sim button:focus-visible{outline:2px solid var(--system);outline-offset:2px}
+  .sw{display:flex;align-items:center;gap:7px;font-family:"Bricolage Grotesque",sans-serif;
+      font-size:.78rem;color:var(--muted);cursor:pointer;margin-left:auto}
+  .sw input{accent-color:var(--ok);width:15px;height:15px;cursor:pointer}
+
+  .sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--edge);
+            border:1px solid var(--edge)}
+  @media(max-width:680px){.sim-grid{grid-template-columns:1fr}}
+  .sim-panel{background:var(--panel);padding:16px 18px;min-height:250px}
+
+  .setlist{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .setlist li{font-family:"JetBrains Mono",monospace;font-size:.78rem;padding:7px 10px;
+    border-left:3px solid var(--stuck);background:var(--stuck);background-clip:padding-box;
+    display:flex;justify-content:space-between;gap:10px}
+  .setlist li{background:color-mix(in srgb,var(--stuck) 9%,transparent)}
+  .setlist li.new{border-left-color:var(--accrue);background:color-mix(in srgb,var(--accrue) 14%,transparent)}
+  .setlist li.skip{border-left-color:var(--ok);opacity:.5;text-decoration:line-through}
+  .setlist li.empty{border-left-color:var(--edge);background:none;color:var(--faint);
+    justify-content:flex-start;font-style:italic;text-decoration:none;opacity:1}
+  .setlist .sz{color:var(--faint)}
+
+  .bigv{font-family:"JetBrains Mono",monospace;font-size:2.1rem;font-weight:600;
+        line-height:1.1;margin:10px 0 2px;font-variant-numeric:tabular-nums}
+  .bigv .unit{font-size:1rem;color:var(--faint)}
+  .bar{height:9px;background:var(--grid);margin:14px 0 16px;overflow:hidden}
+  .bar div{height:100%;width:0;background:var(--stuck);transition:width .35s ease}
+  .dual{display:flex;gap:22px;flex-wrap:wrap}
+  .dual div{display:flex;flex-direction:column}
+  .dual .k{font-family:"Bricolage Grotesque",sans-serif;font-size:.65rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--faint)}
+  .dual span.mono{font-size:1rem;font-weight:600}
+  .verdict{font-size:.87rem;color:var(--muted);margin:16px 0 0;line-height:1.5;min-height:3em}
+  .verdict.good{color:var(--ok)}
+</style>
+
+<button class="tt" id="tt" type="button">theme</button>
+
+<div class="wrap">
+
+<header class="fade">
+  <div class="col">
+    <div class="lab kicker">Harness defect · characterised from one session transcript</div>
+    <h1>The pending set that never empties</h1>
+    <p class="sub">A file edited outside the agent's own tools joins a resync queue. The queue
+    flushes whole, over and over, and only one specific action ever removes anything from it.
+    Here is where it comes from and how it grows.</p>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><span class="v">75</span><span class="k">re-injections</span></div>
+  <div class="stat"><span class="v">295,044</span><span class="k">bytes re-sent</span></div>
+  <div class="stat bad"><span class="v">66.3%</span><span class="k">byte-identical</span></div>
+  <div class="stat bad"><span class="v">15×</span><span class="k">worst single file</span></div>
+  <div class="stat good"><span class="v">0</span><span class="k">after an Edit call</span></div>
+</div>
+<p class="cap">Measured over 296 turns of one session. The worst case is a 665-byte file delivered
+fifteen times, unchanged, across a span of 234 turns.</p>
+
+<hr class="rule">
+
+<section>
+<div class="col">
+  <h2>Where it starts</h2>
+  <p>Two ways exist to change a file the agent is holding in context. They are not
+  symmetric, and the asymmetry is the whole defect.</p>
+</div>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 330" role="img" aria-label="Two paths for modifying a file already in context. The Edit tool path updates the tracked copy and costs nothing. The shell path cannot be attributed, so the file is added to a pending resync set.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+    </marker>
+    <marker id="ars" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--stuck)"/>
+    </marker>
+  </defs>
+
+  <!-- shared origin -->
+  <rect x="18" y="136" width="150" height="58" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+  <text x="93" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="currentColor">file F</text>
+  <text x="93" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">in context</text>
+
+  <line x1="168" y1="150" x2="245" y2="86" stroke="var(--system)" stroke-width="1.6" marker-end="url(#ar)" color="var(--system)"/>
+  <line x1="168" y1="180" x2="245" y2="244" stroke="var(--stuck)" stroke-width="1.6" marker-end="url(#ars)"/>
+
+  <!-- upper: edit tool -->
+  <rect x="248" y="56" width="182" height="60" rx="3" fill="none" stroke="var(--system)" stroke-width="1.6"/>
+  <text x="339" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--system)">Edit / Write</text>
+  <text x="339" y="98" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">harness made it</text>
+
+  <line x1="430" y1="86" x2="512" y2="86" stroke="var(--system)" stroke-width="1.6" marker-end="url(#ar)" color="var(--system)"/>
+  <text x="471" y="76" text-anchor="middle" font-size="11" fill="var(--faint)" font-family="JetBrains Mono, monospace">knows the diff</text>
+
+  <rect x="515" y="56" width="200" height="60" rx="3" fill="none" stroke="var(--system)" stroke-width="1.6"/>
+  <text x="615" y="80" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--system)">tracked copy updated</text>
+  <text x="615" y="98" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">nothing queued</text>
+
+  <line x1="715" y1="86" x2="790" y2="86" stroke="var(--system)" stroke-width="1.6" marker-end="url(#ar)" color="var(--system)"/>
+  <text x="845" y="82" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="var(--system)">0 B</text>
+  <text x="845" y="100" text-anchor="middle" font-size="11" fill="var(--faint)" font-family="JetBrains Mono, monospace">82 of 82</text>
+
+  <!-- lower: shell -->
+  <rect x="248" y="214" width="182" height="60" rx="3" fill="none" stroke="var(--stuck)" stroke-width="1.6"/>
+  <text x="339" y="238" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">Bash · script · build</text>
+  <text x="339" y="256" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">cannot be attributed</text>
+
+  <line x1="430" y1="244" x2="512" y2="244" stroke="var(--stuck)" stroke-width="1.6" marker-end="url(#ars)"/>
+  <text x="471" y="234" text-anchor="middle" font-size="11" fill="var(--faint)" font-family="JetBrains Mono, monospace">bytes differ</text>
+
+  <rect x="515" y="214" width="200" height="60" rx="3" fill="var(--stuck)" fill-opacity=".1" stroke="var(--stuck)" stroke-width="1.6"/>
+  <text x="615" y="238" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">added to pending set</text>
+  <text x="615" y="256" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">membership is permanent</text>
+
+  <line x1="715" y1="244" x2="790" y2="244" stroke="var(--stuck)" stroke-width="1.6" marker-end="url(#ars)"/>
+  <text x="845" y="240" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="var(--stuck)">∞</text>
+  <text x="845" y="258" text-anchor="middle" font-size="11" fill="var(--faint)" font-family="JetBrains Mono, monospace">re-sent forever</text>
+
+  <text x="18" y="316" font-size="11.5" fill="var(--faint)" font-family="JetBrains Mono, monospace">the split held across the whole session: 82 edit-tool calls, zero re-injections</text>
+</svg>
+<figcaption>The same change, made two ways. The harness can attribute its own edits and updates
+its tracked copy silently. It cannot attribute a shell-mediated write, so it queues the file for
+resynchronisation — and that queue entry is what never goes away.</figcaption>
+</figure>
+</section>
+
+<hr class="rule">
+
+<section>
+<div class="col">
+  <h2>How it grows</h2>
+  <p>Each shell-mediated edit drops another slab onto the stack. Flushes are sparse — 21 turns
+  out of 296 — but every flush emits the <em>entire</em> stack, in full, regardless of whether
+  anything in it has changed since last time.</p>
+</div>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 420" role="img" aria-label="Isometric view of the pending set as a growing stack of file slabs. Four slabs accumulate and are never removed; each flush emits all of them at once.">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--accrue)"/>
+    </marker>
+    <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--stuck)"/>
+    </marker>
+  </defs>
+
+  <!-- ground rhombus -->
+  <polygon points="300,340 460,432 620,340 460,248" fill="var(--grid)" fill-opacity=".55" stroke="var(--edge)" stroke-width="1"/>
+
+  <!-- slab 4 (bottom, oldest) -->
+  <g>
+    <polygon points="330,318 460,393 590,318 460,243" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
+    <polygon points="330,318 460,393 460,411 330,336" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
+    <polygon points="590,318 460,393 460,411 590,336" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
+    <text x="620" y="352" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">05-checklist.md</text>
+    <text x="620" y="368" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">entered turn 54 · sent 15×</text>
+  </g>
+  <!-- slab 3 -->
+  <g>
+    <polygon points="330,262 460,337 590,262 460,187" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
+    <polygon points="330,262 460,337 460,355 330,280" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
+    <polygon points="590,262 460,337 460,355 590,280" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
+    <text x="620" y="296" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">mid-session.md</text>
+    <text x="620" y="312" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">665 B · sent 15×</text>
+  </g>
+  <!-- slab 2 -->
+  <g>
+    <polygon points="330,206 460,281 590,206 460,131" fill="var(--stuck)" fill-opacity=".16" stroke="var(--stuck)" stroke-width="1.3"/>
+    <polygon points="330,206 460,281 460,299 330,224" fill="var(--stuck)" fill-opacity=".30" stroke="var(--stuck)" stroke-width="1.1"/>
+    <polygon points="590,206 460,281 460,299 590,224" fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1.1"/>
+    <text x="620" y="240" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">04-reproduction.md</text>
+    <text x="620" y="256" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">entered turn 120 · 14×</text>
+  </g>
+  <!-- slab 1 (top, newest) -->
+  <g>
+    <polygon points="330,150 460,225 590,150 460,75" fill="var(--accrue)" fill-opacity=".20" stroke="var(--accrue)" stroke-width="1.4"/>
+    <polygon points="330,150 460,225 460,243 330,168" fill="var(--accrue)" fill-opacity=".34" stroke="var(--accrue)" stroke-width="1.1"/>
+    <polygon points="590,150 460,225 460,243 590,168" fill="var(--accrue)" fill-opacity=".26" stroke="var(--accrue)" stroke-width="1.1"/>
+    <text x="620" y="184" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--accrue)">01-observed-behaviour.md</text>
+    <text x="620" y="200" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">entered turn 120 · 14×</text>
+  </g>
+
+  <!-- incoming arrow -->
+  <line x1="150" y1="46" x2="330" y2="118" stroke="var(--accrue)" stroke-width="1.7" marker-end="url(#ar2)"/>
+  <text x="20" y="34" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--accrue)">shell edit</text>
+  <text x="20" y="50" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">adds a slab</text>
+
+  <!-- outgoing (absent) -->
+  <line x1="300" y1="392" x2="150" y2="392" stroke="var(--faint)" stroke-width="1.4" stroke-dasharray="5 5"/>
+  <text x="20" y="382" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--faint)">drain on flush</text>
+  <text x="20" y="398" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--stuck)">does not happen</text>
+
+  <!-- flush emission -->
+  <line x1="460" y1="60" x2="460" y2="14" stroke="var(--stuck)" stroke-width="1.7" marker-end="url(#ar3)"/>
+  <text x="474" y="24" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--stuck)">every flush emits the whole stack</text>
+</svg>
+<figcaption>The pending set, drawn as a stack. Shell-mediated writes add slabs from above; the
+drain that should run on a successful flush does not exist. Flush size therefore plateaus at the
+size of the stuck set — here, four files, emitted together on every one of the last fourteen
+flushes.</figcaption>
+</figure>
+</section>
+
+<hr class="rule">
+
+<section>
+<div class="col">
+  <h2>Watch it accumulate</h2>
+  <p>Step through the session one flush at a time. Files enter the set and stay; each flush
+  re-emits everything currently in it. Toggle the fix to see what a single content-hash check
+  before emitting would have saved.</p>
+</div>
+
+<div class="sim">
+  <div class="sim-controls">
+    <button id="step" type="button">Next flush</button>
+    <button id="play" type="button">Play</button>
+    <button id="reset" type="button">Reset</button>
+    <label class="sw"><input type="checkbox" id="fix"> <span>Apply content-hash fix</span></label>
+  </div>
+
+  <div class="sim-grid">
+    <div class="sim-panel">
+      <div class="lab">Pending set at turn <span id="turn" class="mono">0</span></div>
+      <ul id="set" class="setlist"><li class="empty">empty</li></ul>
+    </div>
+    <div class="sim-panel">
+      <div class="lab">Cumulative bytes re-injected</div>
+      <div class="bigv"><span id="bytes" class="mono">0</span> <span class="unit">B</span></div>
+      <div class="bar"><div id="barfill"></div></div>
+      <div class="dual">
+        <div><span class="k">flushes</span><span id="nf" class="mono">0</span></div>
+        <div><span class="k">duplicated</span><span id="dup" class="mono">0 B</span></div>
+        <div><span class="k">wasted</span><span id="pct" class="mono">0%</span></div>
+      </div>
+      <p id="verdict" class="verdict">Press <em>Next flush</em> to begin.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<hr class="rule">
+
+<section>
+<div class="col">
+  <h2>The progression, measured</h2>
+  <p>Plotted against turn number, the shape is unmistakable. Early flushes carry one file.
+  Once four files are stuck, every flush carries four — indefinitely, for files that had not
+  been touched in hours.</p>
+</div>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 300" role="img" aria-label="Timeline of 296 session turns showing 21 flush events. Flush size rises from one file to a plateau of four as files accumulate in the pending set, with two evictions marked where an Edit call removed a file.">
+  <!-- axes -->
+  <line x1="60" y1="230" x2="870" y2="230" stroke="var(--edge)" stroke-width="1.2"/>
+  <g stroke="var(--grid)" stroke-width="1">
+    <line x1="60" y1="196" x2="870" y2="196"/><line x1="60" y1="162" x2="870" y2="162"/>
+    <line x1="60" y1="128" x2="870" y2="128"/><line x1="60" y1="94" x2="870" y2="94"/>
+    <line x1="60" y1="60" x2="870" y2="60"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" font-size="10.5" fill="var(--faint)" text-anchor="end">
+    <text x="52" y="234">0</text><text x="52" y="200">1</text><text x="52" y="166">2</text>
+    <text x="52" y="132">3</text><text x="52" y="98">4</text><text x="52" y="64">5</text>
+  </g>
+  <text x="60" y="272" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">turn 0</text>
+  <text x="866" y="272" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--faint)">turn 296</text>
+  <text x="14" y="52" font-family="Bricolage Grotesque, sans-serif" font-size="10.5" fill="var(--faint)" letter-spacing="1">FILES PER FLUSH</text>
+
+  <!-- bars: x = 60 + turn/296*810 ; h = n*34 -->
+  <g fill="var(--stuck)" fill-opacity=".78">
+    <rect x="139" y="196" width="7" height="34"/>
+    <rect x="144" y="196" width="7" height="34"/>
+    <rect x="204" y="196" width="7" height="34"/>
+    <rect x="275" y="196" width="7" height="34"/>
+    <rect x="303" y="128" width="7" height="102"/>
+    <rect x="314" y="94"  width="7" height="136"/>
+    <rect x="388" y="94"  width="7" height="136"/>
+    <rect x="421" y="60"  width="7" height="170"/>
+    <rect x="465" y="77"  width="7" height="153"/>
+    <rect x="530" y="94"  width="7" height="136"/>
+    <rect x="574" y="94"  width="7" height="136"/>
+    <rect x="607" y="196" width="7" height="34"/>
+    <rect x="618" y="94"  width="7" height="136"/>
+    <rect x="643" y="94"  width="7" height="136"/>
+    <rect x="648" y="94"  width="7" height="136"/>
+    <rect x="662" y="94"  width="7" height="136"/>
+    <rect x="668" y="94"  width="7" height="136"/>
+    <rect x="676" y="94"  width="7" height="136"/>
+    <rect x="709" y="94"  width="7" height="136"/>
+    <rect x="788" y="94"  width="7" height="136"/>
+    <rect x="848" y="94"  width="7" height="136"/>
+  </g>
+
+  <!-- plateau marker -->
+  <line x1="618" y1="94" x2="866" y2="94" stroke="var(--stuck)" stroke-width="1" stroke-dasharray="3 4"/>
+  <text x="866" y="86" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--stuck)">plateau at 4 — the stuck set</text>
+
+  <!-- entry marks -->
+  <g stroke="var(--accrue)" stroke-width="1.2" stroke-dasharray="3 3">
+    <line x1="204" y1="230" x2="204" y2="250"/>
+    <line x1="303" y1="230" x2="303" y2="250"/>
+    <line x1="388" y1="230" x2="388" y2="250"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" font-size="10" fill="var(--accrue)" text-anchor="middle">
+    <text x="204" y="262">+1</text><text x="303" y="262">+1</text><text x="388" y="262">+2</text>
+  </g>
+
+  <!-- eviction marks -->
+  <g stroke="var(--ok)" stroke-width="1.6">
+    <line x1="503" y1="34" x2="503" y2="230"/>
+    <line x1="607" y1="34" x2="607" y2="230"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" font-size="10.5" fill="var(--ok)">
+    <text x="509" y="30">Edit → evicted</text>
+    <text x="613" y="46">Edit → evicted</text>
+  </g>
+</svg>
+<figcaption>Twenty-one flushes across 296 turns. Amber ticks mark files entering the set; green
+lines mark the only two departures observed — each immediately after that file was written with
+the harness's own <code>Edit</code> tool. Nothing else removed anything.</figcaption>
+</figure>
+
+<div class="col">
+  <p>Measured three times over the life of the same session, the duplicated share of re-injected
+  bytes rose monotonically: <span class="mono">21.5%</span> → <span class="mono">34.4%</span> →
+  <span class="mono">66.3%</span>. The set accumulates, nothing leaves it unassisted, so the
+  waste fraction climbs for as long as the session runs.</p>
+</div>
+</section>
+
+<hr class="rule">
+
+<section>
+<div class="col">
+  <h2>The one exit</h2>
+  <p>Split every file that ever appeared in a flush by whether an <code>Edit</code> happened
+  <em>after</em> it entered the set. The split is clean.</p>
+
+  <table>
+    <thead><tr><th>file</th><th class="n">last Edit</th><th class="n">flushes after</th><th>outcome</th></tr></thead>
+    <tbody>
+      <tr class="ev"><td>README.md</td><td class="n">200</td><td class="n">0</td><td><span class="pill o">evicted</span></td></tr>
+      <tr class="ev"><td>00-diagrams.md</td><td class="n">162</td><td class="n">0</td><td><span class="pill o">evicted</span></td></tr>
+      <tr class="stuck"><td>05-checklist.md</td><td class="n">23</td><td class="n">15</td><td><span class="pill s">stuck</span></td></tr>
+      <tr class="stuck"><td>mid-session.md</td><td class="n">44</td><td class="n">15</td><td><span class="pill s">stuck</span></td></tr>
+      <tr class="stuck"><td>04-reproduction.md</td><td class="n">22</td><td class="n">14</td><td><span class="pill s">stuck</span></td></tr>
+      <tr class="stuck"><td>01-observed-behaviour.md</td><td class="n">11</td><td class="n">14</td><td><span class="pill s">stuck</span></td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">No <code>Read</code> occurred on any stuck file after it entered the set, so
+  reading is not what evicts. The only observed exit is a write through the harness's own tool.</p>
+
+  <h3>Minimal reproduction</h3>
+  <ol class="steps">
+    <li>Create a small text file and read it, so it enters context.</li>
+    <li class="hot">Modify it with a shell command — <code>sed -i</code>, a heredoc, a build step.
+      It joins the pending set.</li>
+    <li class="hot">Carry on with unrelated work elsewhere. Never touch it again. It is re-sent,
+      byte-identical, on every flush, indefinitely.</li>
+    <li class="hot">Modify it <em>again</em> by shell, in a different part of the file. The
+      payload does not move to the new region — it expands to cover both, and stays larger for
+      the rest of the session.</li>
+    <li class="fix">Edit it once with the harness's own edit tool. It stops.</li>
+  </ol>
+  <p>Steps 3 and 4 demonstrate the two dimensions separately: membership that never sheds files,
+  and entries that never shed regions. Step 5 is both the diagnostic and the workaround available
+  today. Cheaper still is avoiding step 2 — use the edit tool for anything already in context, and
+  reserve shell-mediated writes for files that were never read.</p>
+
+  <h3>The question that was open — and the answer</h3>
+  <p>Every repeat was byte-identical to the first delivery, which is consistent with a snapshot
+  frozen at entry. If that were true, the agent would be handed <em>stale</em> content while
+  believing it current, and this would stop being an efficiency defect. So it was tested inside
+  the same session, on a file that had already been stuck for seventeen flushes.</p>
+</div>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 260" role="img" aria-label="Probe result. Seventeen identical 665-byte deliveries covering lines 79 to 99, then after a shell edit at line 3 a single delivery of 977 bytes covering lines 1 to 99 with the marker present. The control file is unchanged throughout.">
+  <text x="16" y="22" class="mono" font-family="JetBrains Mono, monospace" font-size="11.5" fill="var(--faint)">ARM A · prompts/mid-session.md · marker inserted at line 3 by shell</text>
+
+  <!-- 17 identical -->
+  <g fill="var(--stuck)" fill-opacity=".22" stroke="var(--stuck)" stroke-width="1">
+    <rect x="16" y="42" width="30" height="46"/><rect x="50" y="42" width="30" height="46"/>
+    <rect x="84" y="42" width="30" height="46"/><rect x="118" y="42" width="30" height="46"/>
+    <rect x="152" y="42" width="30" height="46"/><rect x="186" y="42" width="30" height="46"/>
+    <rect x="220" y="42" width="30" height="46"/><rect x="254" y="42" width="30" height="46"/>
+    <rect x="288" y="42" width="30" height="46"/><rect x="322" y="42" width="30" height="46"/>
+    <rect x="356" y="42" width="30" height="46"/><rect x="390" y="42" width="30" height="46"/>
+    <rect x="424" y="42" width="30" height="46"/><rect x="458" y="42" width="30" height="46"/>
+    <rect x="492" y="42" width="30" height="46"/><rect x="526" y="42" width="30" height="46"/>
+    <rect x="560" y="42" width="30" height="46"/>
+  </g>
+  <text x="16" y="106" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--muted)">17 deliveries · hash f58064 · 665 B · lines 79–99 · no marker</text>
+
+  <line x1="600" y1="65" x2="646" y2="65" stroke="var(--accrue)" stroke-width="1.6" marker-end="url(#ar)" color="var(--accrue)"/>
+  <text x="600" y="42" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--accrue)">shell edit</text>
+
+  <!-- the 18th -->
+  <rect x="650" y="30" width="60" height="70" fill="var(--ok)" fill-opacity=".2" stroke="var(--ok)" stroke-width="1.6"/>
+  <text x="650" y="118" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--ok)">delivery 18 · 7c8b54 · 977 B</text>
+  <text x="650" y="134" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--ok)">lines 1–99 · MARKER PRESENT</text>
+
+  <!-- control -->
+  <line x1="16" y1="162" x2="866" y2="162" stroke="var(--edge)" stroke-width="1"/>
+  <text x="16" y="184" font-family="JetBrains Mono, monospace" font-size="11.5" fill="var(--faint)">ARM B · docs/04-reproduction.md · untouched control</text>
+  <g fill="var(--system)" fill-opacity=".18" stroke="var(--system)" stroke-width="1">
+    <rect x="16" y="198" width="30" height="30"/><rect x="50" y="198" width="30" height="30"/>
+    <rect x="84" y="198" width="30" height="30"/><rect x="118" y="198" width="30" height="30"/>
+    <rect x="152" y="198" width="30" height="30"/><rect x="186" y="198" width="30" height="30"/>
+    <rect x="220" y="198" width="30" height="30"/><rect x="254" y="198" width="30" height="30"/>
+    <rect x="288" y="198" width="30" height="30"/><rect x="322" y="198" width="30" height="30"/>
+    <rect x="356" y="198" width="30" height="30"/><rect x="390" y="198" width="30" height="30"/>
+    <rect x="424" y="198" width="30" height="30"/><rect x="458" y="198" width="30" height="30"/>
+  </g>
+  <text x="504" y="218" font-family="JetBrains Mono, monospace" font-size="11" fill="var(--muted)">every delivery identical · b58567 · 5236 B · lines 1–120</text>
+</svg>
+<figcaption>Seventeen provably constant deliveries, then a real change — and the payload
+refreshed. The marker appeared. The content is not stale.</figcaption>
+</figure>
+
+<div class="col">
+  <p><strong>The good news, stated plainly:</strong> the payload is not a frozen snapshot. The
+  agent is not being handed outdated file contents. This stays an efficiency defect, and that is
+  the less alarming of the two answers.</p>
+
+  <p><strong>The new finding:</strong> the window did not <em>move</em> to line 3. It expanded to
+  cover <span class="mono">lines 1–99</span> — the new region and the original one together — and
+  the entry grew from <span class="mono">665 B</span> to <span class="mono">977 B</span>
+  permanently. Dirty regions accumulate inside an entry exactly as files accumulate inside the
+  set.</p>
+
+  <table>
+    <thead><tr><th>dimension</th><th>what accumulates</th><th>what clears it</th></tr></thead>
+    <tbody>
+      <tr><td>set membership</td><td>files never leave</td><td>an <code>Edit</code> to that file</td></tr>
+      <tr class="stuck"><td>entry payload</td><td>regions never retire</td><td>nothing observed</td></tr>
+    </tbody>
+  </table>
+
+  <p>So a file edited by shell in ten different places would carry all ten regions on every
+  subsequent flush, for the rest of the session. The leak has two dimensions, and only one of
+  them has a known exit.</p>
+</div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  /* theme toggle */
+  var tt=document.getElementById('tt'), root=document.documentElement;
+  tt.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){ cur = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'; }
+    root.setAttribute('data-theme', cur==='dark' ? 'light':'dark');
+  });
+
+  /* ---- measured session data ---- */
+  var SIZE={ 'README.md':8217,'05-checklist.md':2163,'00-diagrams.md':7073,
+             'mid-session.md':665,'04-reproduction.md':5236,'01-observed-behaviour.md':6126,
+             '03-mitigations.md':8187 };
+  var ENTER=[[30,'README.md'],[54,'05-checklist.md'],[80,'00-diagrams.md'],[90,'mid-session.md'],
+             [120,'04-reproduction.md'],[120,'01-observed-behaviour.md'],[120,'03-mitigations.md']];
+  var EVICT=[[162,'00-diagrams.md'],[200,'README.md'],[210,'03-mitigations.md']];
+  var FLUSH=[30,32,54,80,90,94,120,132,148,172,188,200,204,213,215,220,222,225,237,266,288];
+
+  var i, timer=null, state, els={
+    turn:document.getElementById('turn'), set:document.getElementById('set'),
+    bytes:document.getElementById('bytes'), bar:document.getElementById('barfill'),
+    nf:document.getElementById('nf'), dup:document.getElementById('dup'),
+    pct:document.getElementById('pct'), verdict:document.getElementById('verdict'),
+    fix:document.getElementById('fix')
+  };
+  var MAXB=310000;
+
+  function reset(){
+    state={idx:0,bytes:0,dup:0,flushes:0,sent:{},members:[],lastNew:[]};
+    render(0,[]);
+    els.verdict.className='verdict';
+    els.verdict.innerHTML='Press <em>Next flush</em> to begin.';
+    document.getElementById('step').disabled=false;
+  }
+  function fmt(n){ return n.toLocaleString('en-US'); }
+
+  function render(turn, skipped){
+    els.turn.textContent=turn;
+    els.set.innerHTML='';
+    if(!state.members.length){
+      var li=document.createElement('li'); li.className='empty';
+      li.textContent='empty'; els.set.appendChild(li);
+    } else {
+      state.members.forEach(function(f){
+        var li=document.createElement('li');
+        if(skipped.indexOf(f)>-1) li.className='skip';
+        else if(state.lastNew.indexOf(f)>-1) li.className='new';
+        li.innerHTML='<span>'+f+'</span><span class="sz">'+fmt(SIZE[f])+' B</span>';
+        els.set.appendChild(li);
+      });
+    }
+    els.bytes.textContent=fmt(state.bytes);
+    els.bar.style.width=Math.min(100,state.bytes/MAXB*100)+'%';
+    els.nf.textContent=state.flushes;
+    els.dup.textContent=fmt(state.dup)+' B';
+    els.pct.textContent=state.bytes? Math.round(state.dup/state.bytes*100)+'%' : '0%';
+  }
+
+  function step(){
+    if(state.idx>=FLUSH.length){ stop(); return; }
+    var turn=FLUSH[state.idx++];
+    ENTER.forEach(function(e){
+      if(e[0]<=turn && state.members.indexOf(e[1])<0 && !wasEvicted(e[1],turn)) state.members.push(e[1]);
+    });
+    EVICT.forEach(function(e){
+      if(e[0]<=turn){ var k=state.members.indexOf(e[1]); if(k>-1) state.members.splice(k,1); }
+    });
+    state.lastNew=state.members.filter(function(f){ return !state.sent[f]; });
+
+    var skipped=[], fixOn=els.fix.checked;
+    state.members.forEach(function(f){
+      var seen=!!state.sent[f];
+      if(fixOn && seen){ skipped.push(f); return; }
+      state.bytes+=SIZE[f];
+      if(seen) state.dup+=SIZE[f];
+      state.sent[f]=true;
+    });
+    state.flushes++;
+    render(turn,skipped);
+    say(turn,fixOn);
+    if(state.idx>=FLUSH.length){ document.getElementById('step').disabled=true; stop(); }
+  }
+  function wasEvicted(f,turn){
+    return EVICT.some(function(e){ return e[1]===f && e[0]<=turn; });
+  }
+  function say(turn,fixOn){
+    var v=els.verdict;
+    if(state.idx>=FLUSH.length){
+      v.className='verdict'+(fixOn?' good':'');
+      v.innerHTML= fixOn
+        ? '<strong>With the fix:</strong> '+fmt(state.bytes)+' B total, '+fmt(state.dup)+
+          ' B duplicated. Every repeat suppressed by one hash comparison.'
+        : '<strong>Session end:</strong> '+fmt(state.bytes)+' B re-injected, '+fmt(state.dup)+
+          ' B of it byte-identical repeats — '+Math.round(state.dup/state.bytes*100)+
+          '% of the total, spent re-sending files nothing had changed.';
+      return;
+    }
+    v.className='verdict';
+    v.innerHTML='Turn '+turn+' — flush '+state.flushes+' emitted '+
+      (state.members.length)+' file'+(state.members.length===1?'':'s')+'. '+
+      (state.lastNew.length? 'New this flush: <code>'+state.lastNew.join('</code>, <code>')+'</code>.'
+                           : 'Nothing new — every byte is a repeat.');
+  }
+  function stop(){ if(timer){clearInterval(timer);timer=null;} document.getElementById('play').textContent='Play'; }
+
+  document.getElementById('step').addEventListener('click',function(){ stop(); step(); });
+  document.getElementById('reset').addEventListener('click',function(){ stop(); reset(); });
+  document.getElementById('play').addEventListener('click',function(){
+    if(timer){ stop(); return; }
+    this.textContent='Pause';
+    timer=setInterval(step, 620);
+  });
+  els.fix.addEventListener('change',function(){ stop(); reset(); });
+  reset();
+})();
+</script>
+
+</body>
+</html>
