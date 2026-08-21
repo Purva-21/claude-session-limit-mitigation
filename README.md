@@ -1,4 +1,4 @@
-# Surviving session limits in long agentic coding sessions
+# Surviving Claude Opus 5 session limits on long agentic coding tasks
 
 ![The simulator: files enter a pending set and never leave, so every flush re-sends all of them. Toggling the content-hash fix drops the same session from 295,044 bytes to 37,667.](docs/img/simulator.gif)
 
